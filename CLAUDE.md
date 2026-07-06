@@ -8,8 +8,8 @@ a rule below says to, not preemptively.
 
 ## Conduct
 
-- Never commit credentials, tokens, or secrets — not in code, config, tests, or fixtures.
-- Never force-push or rewrite history on a shared branch.
+- Never commit credentials, tokens, or secrets — not in code, config, tests, or fixtures. (a commit gate enforces this)
+- Never force-push or rewrite history on a shared branch. (a commit gate enforces this)
 - Never disable, skip, or delete a failing test to make a build pass — fix it or surface it.
 - All changes to a public API are versioned and documented.
 - Destructive operations (dropping data, deleting branches, bulk rewrites) require explicit confirmation first.
@@ -30,9 +30,9 @@ Before starting a non-trivial task, read arcana/precepts.md and follow it.
 
 ## Required reviews
 
-- Before each commit: if the changes touch `**/auth/**` or `**/*secret*` or `**/*token*` or `**/*credential*` or `**/middleware/**` or `**/session/**`, review them against arcana/cards/hermit.md (security).
-- When adding a new dependency: review the change against arcana/cards/hermit.md (security).
-- Before opening a pull request: review the changes against arcana/cards/justice.md (correctness).
+- Before each commit: if the changes touch `**/auth/**` or `**/*secret*` or `**/*token*` or `**/*credential*` or `**/middleware/**` or `**/session/**`, have the `hermit` agent review them (security).
+- When adding a new dependency: have the `hermit` agent review the change (security).
+- Before opening a pull request: have the `justice` agent review the changes (correctness).
 - Before each commit: review the changes against arcana/cards/hierophant.md (convention).
 - Before opening a pull request: review the changes against arcana/cards/temperance.md (proportion).
 - When refactoring existing code: review the change against arcana/cards/temperance.md (proportion).
@@ -48,6 +48,7 @@ Reviews report findings at four severities; act on them as follows:
 - must-fix — fix it before declaring the work done.
 - blocker — stop and ask the user before proceeding.
 
-When several reviews apply to the same change, reconcile their findings and
-present one verdict with clear priorities — not a pile of contradictions.
-<!-- arcana:hash:sha256 378944770c497af197ef9009755644f6ef0dcd9e79644ab17b2bc65dba23337b -->
+When several reviews apply to the same change, run their agents in
+parallel where available, then reconcile the findings into one verdict
+with clear priorities — not a pile of contradictions.
+<!-- arcana:hash:sha256 d79cff27f1e6cb4e8d0966f4c249bfa5b910d1e190de543e787e7670fd632004 -->
