@@ -1,0 +1,24 @@
+version: 1
+enforcement:
+  claude_hooks: true
+  git_hooks: false
+cards:
+  - id: hermit
+  - id: justice
+  - id: hierophant
+  - id: temperance
+  - id: strength
+rites:
+  - id: migration
+  - id: bugfix
+  - id: refactor
+  - id: dependency
+bindings:
+  conduct:
+    - text: "Never commit credentials, tokens, or secrets — not in code, config, tests, or fixtures."
+      critical: true
+    - text: "Never force-push or rewrite history on a shared branch."
+      critical: true
+    - text: "Never disable, skip, or delete a failing test to make a build pass — fix it or surface it."
+    - text: "All changes to a public API are versioned and documented."
+    - text: "Destructive operations (dropping data, deleting branches, bulk rewrites) require explicit confirmation first."
