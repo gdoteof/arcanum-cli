@@ -84,6 +84,17 @@ describe('emitCore', () => {
     expect(core).not.toContain('Verify claims against the code.');
   });
 
+  it('routes the "stalled" moment as a step-back instruction, not a diff review', () => {
+    const project = fixture(
+      'version: 1\ncards:\n  - id: hanged-man\n',
+    );
+    const core = emitCore(project, REVIEW_OPTS);
+    expect(core).toContain(
+      '- When a task stops converging (you are repeating an implement→check cycle without progress, or stuck failing the same test): step back and work through arcana/cards/hanged-man.md (convergence) before continuing.',
+    );
+    expect(core).not.toContain('review the changes against arcana/cards/hanged-man.md');
+  });
+
   it('emits a continuous review line for glob-only vigils', () => {
     const project = fixture(
       'version: 1\ncards:\n  - id: hermit\n    vigils:\n      globs: ["src/payments/**"]\n      moments: []\n      changes: []\n',

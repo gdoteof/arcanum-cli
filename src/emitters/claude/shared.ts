@@ -40,6 +40,16 @@ export function cardRoutingLines(card: ResolvedCard): string[] {
   const lines: string[] = [];
   for (const { at, mode } of moments) {
     const when = MOMENT_PHRASES[at];
+    // "stalled" is a self-monitored reflective moment, not a code diff — it steps
+    // back and works through the persona rather than reviewing "the changes".
+    if (at === 'stalled') {
+      lines.push(
+        `- ${when} (you are repeating an implement→check cycle without progress, or ` +
+          `stuck failing the same test): step back and work through ${cardReferencePath(card)} ` +
+          `(${domain}) before continuing.`,
+      );
+      continue;
+    }
     const act = mode === 'audit' ? auditWith : reviewAgainst;
     const hasGlobs = globs.length > 0 && mode === 'review';
     lines.push(

@@ -82,6 +82,12 @@ describe('parseCard', () => {
     expect(() => parseCard(text, 'f.md')).toThrow(/task-start, pre-commit, pre-push, pre-pr/);
   });
 
+  it('accepts the self-monitored "stalled" moment', () => {
+    const text = `---\nid: c\ndomain: x\nseverity_default: portent\ndefault_vigils:\n  moments: [stalled]\n---\nB.\n`;
+    const card = parseCard(text, 'f.md');
+    expect(card.meta.default_vigils.moments).toEqual(['stalled']);
+  });
+
   it('rejects an unknown change type, listing the known ones', () => {
     const text = `---\nid: c\ndomain: x\nseverity_default: omen\ndefault_vigils:\n  changes: [rewrite]\n---\nB.\n`;
     expect(() => parseCard(text, 'f.md')).toThrow(/schema, dependency-add/);

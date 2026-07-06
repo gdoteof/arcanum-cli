@@ -85,6 +85,7 @@ Before starting a non-trivial task, read arcana/precepts.md and follow it.
 - When updating a dependency: review the change against arcana/cards/strength.md (resilience).
 - Before opening a pull request: have the `devil` agent try to break the changes (abuse resistance).
 - When working in files matching `**/*parser*` or `**/*upload*` or `**/handlers/**` or `**/routes/**` or `**/*quota*`: review your changes against arcana/cards/devil.md (abuse resistance) before finishing.
+- When a task stops converging (you are repeating an implement→check cycle without progress, or stuck failing the same test): step back and work through arcana/cards/hanged-man.md (convergence) before continuing.
 
 Reviews and audits report findings at four severities; act on them as follows:
 
@@ -114,4 +115,4 @@ You may merge a pull request yourself once you trust it — its required audits
 have run against the current diff with no unresolved must-fix or blocker
 finding. Merge through the pull request; never land changes by committing,
 merging, or pushing to a protected branch directly.
-<!-- arcana:hash:sha256 016693377f37f9409168dd0b9cb62fe6c7f6159b74218623cc30299cf48046d2 -->
+<!-- arcana:hash:sha256 0357007fdb411cd0bb9f0a25efbaa2a1a08a60f80b187fa7c199e6f239e1295e -->
