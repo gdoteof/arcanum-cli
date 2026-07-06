@@ -6,11 +6,7 @@ describe('parseDeck', () => {
   it('parses a full deck', () => {
     const deck = parseDeck(VALID_DECK, 'deck.yaml');
     expect(deck.version).toBe(1);
-    expect(deck.enforcement).toEqual({
-      claude_hooks: true,
-      git_hooks: false,
-      protected_branches: [],
-    });
+    expect(deck.enforcement).toEqual({ claude_hooks: true, git_hooks: false });
     expect(deck.cards).toEqual([{ id: 'hermit' }]);
     expect(deck.rites).toEqual([{ id: 'migration' }]);
     expect(deck.bindings.conduct).toHaveLength(2);
@@ -23,28 +19,10 @@ describe('parseDeck', () => {
 
   it('applies defaults for a minimal deck', () => {
     const deck = parseDeck('version: 1\n', 'deck.yaml');
-    expect(deck.enforcement).toEqual({
-      claude_hooks: true,
-      git_hooks: false,
-      protected_branches: [],
-    });
+    expect(deck.enforcement).toEqual({ claude_hooks: true, git_hooks: false });
     expect(deck.cards).toEqual([]);
     expect(deck.rites).toEqual([]);
     expect(deck.bindings.conduct).toEqual([]);
-    expect(deck.preamble).toBeUndefined();
-  });
-
-  it('parses a preamble path and protected branches', () => {
-    const deck = parseDeck(
-      'version: 1\npreamble: src/preamble.md\nenforcement:\n  protected_branches: [main, release]\n',
-      'deck.yaml',
-    );
-    expect(deck.preamble).toBe('src/preamble.md');
-    expect(deck.enforcement.protected_branches).toEqual(['main', 'release']);
-  });
-
-  it('rejects an empty preamble path', () => {
-    expect(() => parseDeck('version: 1\npreamble: ""\n', 'deck.yaml')).toThrow(/preamble/);
   });
 
   it('parses per-key vigil overrides', () => {

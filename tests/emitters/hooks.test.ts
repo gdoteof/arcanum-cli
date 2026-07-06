@@ -75,25 +75,6 @@ bindings:
       'Never force-push or rewrite history on a shared branch.',
     ]);
   });
-
-  it('marks branch/PR bindings as gated only when a branch is protected', () => {
-    const conduct = `bindings:
-  conduct:
-    - text: "Do all work on a feature branch; never commit to main."
-      critical: true
-    - text: "Land changes on main only through a reviewed pull request."
-      critical: true
-`;
-    const off = fixture(`version: 1\n${conduct}`);
-    expect(gatedBindingTexts(off).size).toBe(0);
-
-    const on = fixture(`version: 1\nenforcement:\n  protected_branches: [main]\n${conduct}`);
-    expect(on).toBeDefined();
-    expect([...gatedBindingTexts(on)]).toEqual([
-      'Do all work on a feature branch; never commit to main.',
-      'Land changes on main only through a reviewed pull request.',
-    ]);
-  });
 });
 
 describe('emitHooks', () => {
@@ -111,15 +92,8 @@ describe('emitHooks', () => {
     const config = emitHooks(fixture(), FIXTURE_VERSION)[0]!;
     expect(config.content).toContain('export const secretScan = true;');
     expect(config.content).toContain('export const forcePushBlocked = false;');
-    expect(config.content).toContain('export const protectedBranches = [];');
     expect(config.content).toContain('"id": "hermit"');
     expect(config.content).toContain('export const knownReviewIds = ["hermit","justice"];');
-  });
-
-  it('compiles protected branches into guard-config.mjs', () => {
-    const project = fixture('version: 1\nenforcement:\n  protected_branches: [main, release]\n');
-    const config = emitHooks(project, FIXTURE_VERSION)[0]!;
-    expect(config.content).toContain('export const protectedBranches = ["main","release"];');
   });
 
   it('emits scripts with no runtime dependencies beyond node built-ins', () => {

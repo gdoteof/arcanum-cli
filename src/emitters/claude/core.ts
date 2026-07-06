@@ -22,11 +22,6 @@ export function emitCore(project: Project, options: CoreOptions): string {
     'a rule below says to, not preemptively.',
   );
 
-  // Team-owned always-on instructions, verbatim, ahead of the generated rules.
-  if (project.preamble !== undefined) {
-    parts.push('', project.preamble);
-  }
-
   const conduct = project.deck.bindings.conduct;
   if (conduct.length > 0) {
     parts.push('', '## Conduct', '');

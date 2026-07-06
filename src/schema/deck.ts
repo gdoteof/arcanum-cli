@@ -41,17 +41,13 @@ export const DeckSchema = z
     version: z.literal(1, {
       errorMap: () => ({ message: 'this version of arcana only supports "version: 1" decks' }),
     }),
-    /** Path (relative to the repo root) to always-on team-owned instructions. */
-    preamble: z.string().min(1).optional(),
     enforcement: z
       .object({
         claude_hooks: z.boolean().default(true),
         git_hooks: z.boolean().default(false),
-        /** Branches that may only be updated through a reviewed PR. Empty = off. */
-        protected_branches: z.array(z.string().min(1)).default([]),
       })
       .strict()
-      .default({ claude_hooks: true, git_hooks: false, protected_branches: [] }),
+      .default({ claude_hooks: true, git_hooks: false }),
     cards: z.array(DeckCardSchema).default([]),
     rites: z.array(DeckRiteSchema).default([]),
     bindings: z

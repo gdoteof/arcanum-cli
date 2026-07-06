@@ -2,7 +2,6 @@
 
 export const secretScan = true;
 export const forcePushBlocked = true;
-export const protectedBranches = ["main"];
 export const knownReviewIds = ["hermit","justice","hierophant","temperance","strength","devil"];
 export const gates = [
   {
@@ -85,4 +84,4 @@ export const gates = [
     ]
   }
 ];
-// arcana:hash:sha256 3b4250c7d6f40874e4c0f3a93ae1712e83ee3cbf9b6a392883d8f834be86c2ee
+// arcana:hash:sha256 82e27f20f8c1ef3583dc56a34ff52638dbec4757aef48d1f2fc8e9be55f5a174

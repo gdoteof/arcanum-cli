@@ -57,15 +57,6 @@ describe('compile', () => {
     expect(output.settingsGroups).toEqual([]);
   });
 
-  it('emits hooks when only branch protection is enabled', () => {
-    const project = fixture(
-      'version: 1\nenforcement:\n  protected_branches: [main]\nrites:\n  - id: migration\n',
-    );
-    const output = compile(project, { version: FIXTURE_VERSION });
-    expect(output.files.some((f) => f.path === '.claude/arcana/bin/gate.mjs')).toBe(true);
-    expect(output.settingsGroups).toHaveLength(1);
-  });
-
   it('stamps every emitted file verifiably', () => {
     for (const file of compile(fixture(), { version: FIXTURE_VERSION }).files) {
       expect(verifyStamp(file.content), file.path).toBe('ok');

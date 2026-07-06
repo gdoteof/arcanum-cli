@@ -188,35 +188,6 @@ describe('loadProject', () => {
     expect(() => loadProject(root, { registryDir: bare })).toThrow(/no precepts found/);
   });
 
-  it('reads a preamble file when the deck sets one', () => {
-    const root = tree({
-      'deck.yaml': 'version: 1\npreamble: src/preamble.md\n',
-      'src/preamble.md': '## House rules\n\nBe careful.\n',
-    });
-    const project = loadProject(root, { registryDir: registry() });
-    expect(project.preamble).toBe('## House rules\n\nBe careful.');
-  });
-
-  it('leaves preamble undefined when the deck sets none', () => {
-    const root = tree({ 'deck.yaml': 'version: 1\n' });
-    expect(loadProject(root, { registryDir: registry() }).preamble).toBeUndefined();
-  });
-
-  it('errors when the preamble file is missing', () => {
-    const root = tree({ 'deck.yaml': 'version: 1\npreamble: src/preamble.md\n' });
-    expect(() => loadProject(root, { registryDir: registry() })).toThrow(
-      /preamble file not found: src\/preamble\.md/,
-    );
-  });
-
-  it('errors when the preamble file is empty', () => {
-    const root = tree({
-      'deck.yaml': 'version: 1\npreamble: src/preamble.md\n',
-      'src/preamble.md': '   \n',
-    });
-    expect(() => loadProject(root, { registryDir: registry() })).toThrow(/preamble file is empty/);
-  });
-
   it('errors when the precepts file is empty', () => {
     const root = tree({ 'deck.yaml': 'version: 1\n', 'src/precepts.md': '\n' });
     expect(() => loadProject(root, { registryDir: registry() })).toThrow(/precepts file is empty/);

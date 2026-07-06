@@ -6,45 +6,6 @@ This is the always-on core of how to work in this repository. The detailed
 checklists and workflows it references live under arcana/ — read them when
 a rule below says to, not preemptively.
 
-## Project guidelines
-
-Behavioral guidelines to reduce common LLM coding mistakes. These bias toward
-caution over speed; for trivial tasks, use judgment.
-
-### Think before coding
-
-Don't assume, don't hide confusion, surface tradeoffs. Before implementing:
-state your assumptions explicitly and ask if uncertain; if multiple
-interpretations exist, present them rather than picking silently; if a simpler
-approach exists, say so and push back when warranted; if something is unclear,
-stop, name what's confusing, and ask.
-
-### Simplicity first
-
-Minimum code that solves the problem, nothing speculative: no features beyond
-what was asked, no abstractions for single-use code, no configurability that
-wasn't requested, no error handling for impossible scenarios. If you write 200
-lines and it could be 50, rewrite it. Would a senior engineer call this
-overcomplicated? If yes, simplify.
-
-### Surgical changes
-
-Touch only what you must; clean up only your own mess. Don't "improve" adjacent
-code, comments, or formatting, and don't refactor what isn't broken; match
-existing style even if you'd do it differently; if you notice unrelated dead
-code, mention it rather than delete it. Remove imports and variables your
-changes orphaned, but leave pre-existing dead code unless asked. Every changed
-line should trace directly to the request.
-
-### Goal-driven execution
-
-Turn tasks into verifiable goals and loop until verified: "add validation"
-becomes "write tests for invalid inputs, then make them pass"; "fix the bug"
-becomes "write a test that reproduces it, then make it pass." For multi-step
-work, state a brief plan with a verification check per step. Strong success
-criteria let you work independently; weak criteria ("make it work") force
-constant clarification.
-
 ## Conduct
 
 - Never commit credentials, tokens, or secrets — not in code, config, tests, or fixtures. (a commit gate enforces this)
@@ -52,8 +13,6 @@ constant clarification.
 - Never disable, skip, or delete a failing test to make a build pass — fix it or surface it.
 - All changes to a public API are versioned and documented.
 - Destructive operations (dropping data, deleting branches, bulk rewrites) require explicit confirmation first.
-- Do all work on a feature branch; never commit directly to the main branch. (a commit gate enforces this)
-- Land changes on main only through a reviewed pull request; never merge or push to it directly. (a commit gate enforces this)
 
 These rules are hard. If one conflicts with what you are asked to do, stop
 and surface the conflict — do not break the rule.
@@ -103,4 +62,4 @@ a break. When you dispatch one, hand it only the diff and the task statement
 — never your own reasoning, plan, or why you think the code is correct. Its
 value is the clean-room view; do not contaminate it. Treat every
 reproduction it returns as real until you have disproven it.
-<!-- arcana:hash:sha256 47bdf4f46ada3034b8fd0cf85f41548a83e640983d43fd12a81bb8fb4e31c9e9 -->
+<!-- arcana:hash:sha256 c23785437d19be0ec26df8120dcf97ccf6551a0ea9e3cd52de4b43cc9c152f53 -->

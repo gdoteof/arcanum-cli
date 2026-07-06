@@ -37,14 +37,10 @@ export function runList(root: string, options: ListOptions): string {
   const { deck } = project;
   const lines: string[] = [];
 
-  const protectedBranches = deck.enforcement.protected_branches;
   lines.push(
     `Deck: ${project.cards.length} card(s), ${project.rites.length} rite(s), ${deck.bindings.conduct.length} conduct binding(s)`,
-    `Enforcement: claude hooks ${deck.enforcement.claude_hooks ? 'on' : 'off'}, git hooks ${deck.enforcement.git_hooks ? 'on' : 'off'}, protected branches: ${protectedBranches.length > 0 ? protectedBranches.join(', ') : 'none'}`,
+    `Enforcement: claude hooks ${deck.enforcement.claude_hooks ? 'on' : 'off'}, git hooks ${deck.enforcement.git_hooks ? 'on' : 'off'}`,
   );
-  if (project.preamble !== undefined) {
-    lines.push(`Preamble: ${deck.preamble} (${project.preamble.split('\n').length} lines, always-on)`);
-  }
   if (project.cards.length > 0) {
     lines.push('', 'Cards', ...project.cards.map(cardLine));
   }

@@ -2,9 +2,6 @@ version: 1
 enforcement:
   claude_hooks: true
   git_hooks: false
-  # List branches here (e.g. [main]) to block direct commits/merges/pushes to
-  # them and require pull requests. Left empty by default — opt in per project.
-  protected_branches: []
 cards:
   - id: hermit
   - id: justice
@@ -26,7 +23,3 @@ bindings:
     - text: "Never disable, skip, or delete a failing test to make a build pass — fix it or surface it."
     - text: "All changes to a public API are versioned and documented."
     - text: "Destructive operations (dropping data, deleting branches, bulk rewrites) require explicit confirmation first."
-    - text: "Do all work on a feature branch; never commit directly to the main branch."
-      critical: true
-    - text: "Land changes on main only through a reviewed pull request; never merge or push to it directly."
-      critical: true

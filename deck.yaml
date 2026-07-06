@@ -1,9 +1,7 @@
 version: 1
-preamble: src/preamble.md
 enforcement:
   claude_hooks: true
   git_hooks: false
-  protected_branches: [main]
 cards:
   - id: hermit
   - id: justice
@@ -25,7 +23,3 @@ bindings:
     - text: "Never disable, skip, or delete a failing test to make a build pass — fix it or surface it."
     - text: "All changes to a public API are versioned and documented."
     - text: "Destructive operations (dropping data, deleting branches, bulk rewrites) require explicit confirmation first."
-    - text: "Do all work on a feature branch; never commit directly to the main branch."
-      critical: true
-    - text: "Land changes on main only through a reviewed pull request; never merge or push to it directly."
-      critical: true

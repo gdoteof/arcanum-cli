@@ -68,14 +68,10 @@ export function gateEntries(project: Project): GateEntry[] {
 /** Critical conduct bindings that have a deterministic hook mirror (§8). */
 export function gatedBindingTexts(project: Project): Set<string> {
   const gated = new Set<string>();
-  const branchProtection = project.deck.enforcement.protected_branches.length > 0;
   for (const binding of project.deck.bindings.conduct) {
     if (!binding.critical) continue;
     if (/secret|credential|token|password/i.test(binding.text)) gated.add(binding.text);
     if (/force-?push|rewrite history/i.test(binding.text)) gated.add(binding.text);
-    if (branchProtection && /branch|pull request|\bPR\b|merge/i.test(binding.text)) {
-      gated.add(binding.text);
-    }
   }
   return gated;
 }
@@ -90,7 +86,6 @@ function guardConfig(project: Project, version: string): string {
     '',
     `export const secretScan = ${secretScan};`,
     `export const forcePushBlocked = ${forcePushBlocked};`,
-    `export const protectedBranches = ${JSON.stringify(project.deck.enforcement.protected_branches)};`,
     `export const knownReviewIds = ${JSON.stringify(project.cards.map((c) => c.card.meta.id))};`,
     `export const gates = ${JSON.stringify(entries, null, 2)};`,
   ].join('\n');
@@ -115,11 +110,6 @@ export function sha256(text) {
 
 export function repoRoot() {
   const out = git(['rev-parse', '--show-toplevel']);
-  return out ? out.trim() : null;
-}
-
-export function currentBranch() {
-  const out = git(['rev-parse', '--abbrev-ref', 'HEAD']);
   return out ? out.trim() : null;
 }
 
@@ -184,8 +174,8 @@ export function writeMarker(id, marker) {
 `;
 
 const GATE_SOURCE = `import { readFileSync } from 'node:fs';
-import { git, sha256, stagedHash, branchHash, pathspecs, readMarker, currentBranch } from '../lib.mjs';
-import { secretScan, forcePushBlocked, protectedBranches, knownReviewIds, gates } from '../guard-config.mjs';
+import { git, sha256, stagedHash, branchHash, pathspecs, readMarker } from '../lib.mjs';
+import { secretScan, forcePushBlocked, knownReviewIds, gates } from '../guard-config.mjs';
 
 function block(message) {
   process.stderr.write(message + '\\n');
@@ -204,7 +194,6 @@ try {
 const gitPrefix = '\\\\bgit(\\\\s+-[^\\\\s]+|\\\\s+-C\\\\s+\\\\S+)*\\\\s+';
 const isCommit = new RegExp(gitPrefix + 'commit\\\\b').test(command);
 const isPush = new RegExp(gitPrefix + 'push\\\\b').test(command);
-const isMerge = new RegExp(gitPrefix + 'merge\\\\b').test(command);
 const isPrCreate = /\\bgh\\s+pr\\s+create\\b/.test(command);
 const isForce = /(\\s--force(-with-lease|-if-includes)?\\b|\\s-f\\b)/.test(command);
 
@@ -213,41 +202,6 @@ if (isPush && isForce && forcePushBlocked) {
     'Blocked by a conduct rule: never force-push or rewrite history on a shared ' +
       'branch. If this is genuinely required, ask the user to run it themselves.',
   );
-}
-
-// Branch discipline: protected branches are updated only through reviewed PRs.
-if (protectedBranches.length > 0) {
-  const branch = currentBranch();
-  const onProtected = branch !== null && protectedBranches.includes(branch);
-  // Tokens of the command, with a:b refspecs split, to catch \`push origin main\`.
-  const tokens = command.split(/\\s+/).flatMap((t) => t.split(':'));
-  const pushesProtected = isPush && tokens.some((t) => protectedBranches.includes(t));
-
-  if (isCommit && onProtected) {
-    block(
-      'Blocked: you are on the protected branch "' +
-        branch +
-        '". Do your work on a feature branch — create one with "git checkout -b <name>" — ' +
-        'and land it on ' +
-        branch +
-        ' through a reviewed pull request.',
-    );
-  }
-  if (isMerge && onProtected) {
-    block(
-      'Blocked: do not merge into the protected branch "' +
-        branch +
-        '" locally. Open a pull request and let it be reviewed and merged there.',
-    );
-  }
-  if (isPush && (pushesProtected || onProtected)) {
-    block(
-      'Blocked: do not push directly to a protected branch. Push your feature branch ' +
-        'and open a pull request; the merge into ' +
-        protectedBranches.join('/') +
-        ' happens there.',
-    );
-  }
 }
 
 const moment = isCommit ? 'pre-commit' : isPush ? 'pre-push' : isPrCreate ? 'pre-pr' : null;

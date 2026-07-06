@@ -130,20 +130,6 @@ describe('emitCore', () => {
     expect(core).toContain('not a pile of contradictions');
   });
 
-  it('inserts a preamble verbatim after the intro, ahead of the generated rules', () => {
-    const registry = makeTree({ 'precepts.md': VALID_PRECEPTS });
-    const root = makeTree({
-      'deck.yaml': 'version: 1\npreamble: src/preamble.md\n',
-      'src/preamble.md': '## House rules\n\nAlways run the linter.\n',
-    });
-    cleanups.push(registry, root);
-    const project = loadProject(root, { registryDir: registry });
-    const core = emitCore(project, REVIEW_OPTS);
-    expect(core).toContain('## House rules\n\nAlways run the linter.');
-    // preamble sits between the intro and Working principles
-    expect(core.indexOf('## House rules')).toBeLessThan(core.indexOf('## Working principles'));
-  });
-
   it('contains no lore vocabulary', () => {
     expect(findLoreWords(emitCore(fixture(), BASE_OPTS))).toEqual([]);
   });

@@ -36,9 +36,7 @@ export function compile(project: Project, options: CompileOptions): BuildOutput 
   // Hooks are emitted only when enabled AND there is something to enforce.
   const hooksEnabled =
     project.deck.enforcement.claude_hooks &&
-    (gateEntries(project).length > 0 ||
-      gatedBindingTexts(project).size > 0 ||
-      project.deck.enforcement.protected_branches.length > 0);
+    (gateEntries(project).length > 0 || gatedBindingTexts(project).size > 0);
   const hasAudits = auditCards(project).length > 0;
   const gatedTexts = hooksEnabled ? gatedBindingTexts(project) : new Set<string>();
 

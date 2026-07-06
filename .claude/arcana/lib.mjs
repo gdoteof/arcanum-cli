@@ -21,11 +21,6 @@ export function repoRoot() {
   return out ? out.trim() : null;
 }
 
-export function currentBranch() {
-  const out = git(['rev-parse', '--abbrev-ref', 'HEAD']);
-  return out ? out.trim() : null;
-}
-
 export function pathspecs(globs) {
   return globs.map((g) => ':(glob)' + g);
 }
@@ -84,4 +79,4 @@ export function writeMarker(id, marker) {
   writeFileSync(join(dir, id + '.json'), JSON.stringify(marker, null, 2) + '\n');
   return true;
 }
-// arcana:hash:sha256 496f3f283c6d8dd9f3d1887d620fcfdde03e38a15b233dfc7133ec3dad1b671b
+// arcana:hash:sha256 3976f14cba588db0e67bce1116cc3c2393b736f3e645b0d567d5bbe211b4f45b
