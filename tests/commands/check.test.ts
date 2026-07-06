@@ -36,7 +36,7 @@ describe('runCheck', () => {
     const { root, reg } = builtProject();
     const summary = check(root, reg);
     expect(summary.ok).toBe(true);
-    expect(summary.checked).toBe(4);
+    expect(summary.checked).toBe(11);
     expect(formatCheckSummary(summary)).toContain('no drift');
   });
 
@@ -79,6 +79,15 @@ describe('runCheck', () => {
     const summary = check(root, reg);
     expect(summary.problems).toHaveLength(1);
     expect(summary.problems[0]).toMatchObject({ path: 'arcana/cards/ghost.md', kind: 'orphaned' });
+  });
+
+  it('reports settings drift when arcana hook entries are removed', () => {
+    const { root, reg } = builtProject();
+    writeFileSync(join(root, '.claude/settings.json'), '{}\n');
+    const summary = check(root, reg);
+    expect(summary.problems).toHaveLength(1);
+    expect(summary.problems[0]).toMatchObject({ path: '.claude/settings.json', kind: 'stale' });
+    expect(summary.problems[0]!.detail).toContain('hook entries');
   });
 
   it('reports stale when the arcana version changes', () => {

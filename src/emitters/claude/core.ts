@@ -4,8 +4,10 @@ import { cardRoutingLines, riteRoutingLine, severityContractLines } from './shar
 
 export interface CoreOptions {
   version: string;
-  /** True once hook gates are actually emitted; marks critical conduct as enforced. */
-  gatedConduct: boolean;
+  /** Conduct binding texts that have an emitted hook mirror; marked as enforced. */
+  gatedTexts: ReadonlySet<string>;
+  /** Ids of cards emitted as subagents; their routing lines dispatch the agent. */
+  agentIds: ReadonlySet<string>;
 }
 
 /**
@@ -24,7 +26,7 @@ export function emitCore(project: Project, options: CoreOptions): string {
   if (conduct.length > 0) {
     parts.push('', '## Conduct', '');
     for (const binding of conduct) {
-      const gate = binding.critical && options.gatedConduct ? ' (a commit gate enforces this)' : '';
+      const gate = options.gatedTexts.has(binding.text) ? ' (a commit gate enforces this)' : '';
       parts.push(`- ${binding.text}${gate}`);
     }
     parts.push(
@@ -51,16 +53,26 @@ export function emitCore(project: Project, options: CoreOptions): string {
   if (project.cards.length > 0) {
     parts.push('', '## Required reviews', '');
     for (const card of project.cards) {
-      parts.push(...cardRoutingLines(card));
+      parts.push(...cardRoutingLines(card, options.agentIds));
     }
+    const synthesis =
+      options.agentIds.size > 0
+        ? [
+            'When several reviews apply to the same change, run their agents in',
+            'parallel where available, then reconcile the findings into one verdict',
+            'with clear priorities — not a pile of contradictions.',
+          ]
+        : [
+            'When several reviews apply to the same change, reconcile their findings and',
+            'present one verdict with clear priorities — not a pile of contradictions.',
+          ];
     parts.push(
       '',
       'Reviews report findings at four severities; act on them as follows:',
       '',
       ...severityContractLines(),
       '',
-      'When several reviews apply to the same change, reconcile their findings and',
-      'present one verdict with clear priorities — not a pile of contradictions.',
+      ...synthesis,
     );
   }
 

@@ -17,15 +17,45 @@ function fixture(deckYaml?: string) {
 }
 
 describe('compile', () => {
-  it('emits CLAUDE.md plus the reference tree, sorted by path', () => {
+  it('emits the full surface, sorted by path', () => {
     const output = compile(fixture(), { version: FIXTURE_VERSION });
     expect(output.files.map((f) => f.path)).toEqual([
+      '.claude/agents/hermit.md',
+      '.claude/agents/justice.md',
+      '.claude/arcana/bin/gate.mjs',
+      '.claude/arcana/bin/mark-review.mjs',
+      '.claude/arcana/guard-config.mjs',
+      '.claude/arcana/lib.mjs',
+      '.claude/rules/hermit.md',
+      '.claude/skills/migration/SKILL.md',
       'CLAUDE.md',
       'arcana/cards/hermit.md',
       'arcana/cards/justice.md',
       'arcana/precepts.md',
       'arcana/rites/migration.md',
     ]);
+    expect(output.settingsGroups).toEqual([
+      {
+        matcher: 'Bash',
+        hooks: [{ type: 'command', command: 'node .claude/arcana/bin/gate.mjs', timeout: 15 }],
+      },
+    ]);
+  });
+
+  it('omits hooks and settings groups when enforcement is off', () => {
+    const project = fixture(
+      'version: 1\nenforcement:\n  claude_hooks: false\ncards:\n  - id: hermit\n',
+    );
+    const output = compile(project, { version: FIXTURE_VERSION });
+    expect(output.files.some((f) => f.path.startsWith('.claude/arcana/'))).toBe(false);
+    expect(output.settingsGroups).toEqual([]);
+  });
+
+  it('omits hooks when nothing is gated even with enforcement on', () => {
+    const project = fixture('version: 1\nrites:\n  - id: migration\n');
+    const output = compile(project, { version: FIXTURE_VERSION });
+    expect(output.files.some((f) => f.path.startsWith('.claude/arcana/'))).toBe(false);
+    expect(output.settingsGroups).toEqual([]);
   });
 
   it('stamps every emitted file verifiably', () => {

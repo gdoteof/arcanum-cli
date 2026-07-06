@@ -1,6 +1,8 @@
 import { checkBudget } from '../compiler/budget.js';
 import { stamp } from '../compiler/hash.js';
+import { agentCards } from '../emitters/claude/agents.js';
 import { emitCore } from '../emitters/claude/core.js';
+import { gatedBindingTexts } from '../emitters/claude/hooks.js';
 import { loadProject, type LoadOptions, type ResolvedCard, type ResolvedRite } from '../loader/index.js';
 
 export interface ListOptions extends LoadOptions {
@@ -51,7 +53,15 @@ export function runList(root: string, options: ListOptions): string {
     );
   }
 
-  const core = stamp(emitCore(project, { version: options.version, gatedConduct: false }));
+  // Assembled directly (not via compile) so an over-budget deck still lists.
+  const hooksEnabled = deck.enforcement.claude_hooks;
+  const core = stamp(
+    emitCore(project, {
+      version: options.version,
+      gatedTexts: hooksEnabled ? gatedBindingTexts(project) : new Set<string>(),
+      agentIds: new Set(agentCards(project).map((c) => c.card.meta.id)),
+    }),
+  );
   const budget = checkBudget(core);
   lines.push(
     '',

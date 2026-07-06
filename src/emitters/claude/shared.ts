@@ -29,28 +29,32 @@ export function formatGlobs(globs: string[]): string {
 /**
  * One routing line per active vigil, in plain language. Moment vigils are
  * conditioned on the card's globs when both are present; glob vigils without
- * a moment become continuous "when working in" instructions.
+ * a moment become continuous "when working in" instructions. Cards emitted
+ * as subagents route to the agent instead of the inline checklist.
  */
-export function cardRoutingLines(card: ResolvedCard): string[] {
-  const ref = cardReferencePath(card);
-  const domain = card.card.meta.domain;
+export function cardRoutingLines(card: ResolvedCard, agentIds: ReadonlySet<string>): string[] {
+  const meta = card.card.meta;
+  const review = agentIds.has(meta.id)
+    ? (what: string) => `have the \`${meta.id}\` agent review ${what}`
+    : (what: string) => `review ${what} against ${cardReferencePath(card)}`;
+  const domain = meta.domain;
   const { globs, moments, changes } = card.vigils;
   const lines: string[] = [];
   for (const moment of moments) {
     const when = MOMENT_PHRASES[moment];
     lines.push(
       globs.length > 0
-        ? `- ${when}: if the changes touch ${formatGlobs(globs)}, review them against ${ref} (${domain}).`
-        : `- ${when}: review the changes against ${ref} (${domain}).`,
+        ? `- ${when}: if the changes touch ${formatGlobs(globs)}, ${review('them')} (${domain}).`
+        : `- ${when}: ${review('the changes')} (${domain}).`,
     );
   }
   if (moments.length === 0 && globs.length > 0) {
     lines.push(
-      `- When working in files matching ${formatGlobs(globs)}: review your changes against ${ref} (${domain}) before finishing.`,
+      `- When working in files matching ${formatGlobs(globs)}: ${review('your changes')} (${domain}) before finishing.`,
     );
   }
   for (const change of changes) {
-    lines.push(`- When ${CHANGE_TYPE_PHRASES[change]}: review the change against ${ref} (${domain}).`);
+    lines.push(`- When ${CHANGE_TYPE_PHRASES[change]}: ${review('the change')} (${domain}).`);
   }
   return lines;
 }

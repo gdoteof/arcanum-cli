@@ -28,19 +28,28 @@ function projectRoot(deck = 'version: 1\ncards:\n  - id: hermit\nrites:\n  - id:
 
 const OPTS = (reg: string) => ({ version: '0.0.0-test', registryDir: reg });
 
+const FULL_EMISSION = [
+  '.claude/agents/hermit.md',
+  '.claude/arcana/bin/gate.mjs',
+  '.claude/arcana/bin/mark-review.mjs',
+  '.claude/arcana/guard-config.mjs',
+  '.claude/arcana/lib.mjs',
+  '.claude/rules/hermit.md',
+  '.claude/skills/migration/SKILL.md',
+  'CLAUDE.md',
+  'arcana/cards/hermit.md',
+  'arcana/precepts.md',
+  'arcana/rites/migration.md',
+];
+
 describe('runBuild', () => {
-  it('writes the full emission on first build', () => {
+  it('writes the full emission plus settings on first build', () => {
     const root = projectRoot();
     const summary = runBuild(root, OPTS(registry()));
-    expect(summary.written).toEqual([
-      'CLAUDE.md',
-      'arcana/cards/hermit.md',
-      'arcana/precepts.md',
-      'arcana/rites/migration.md',
-    ]);
+    expect(summary.written).toEqual([...FULL_EMISSION, '.claude/settings.json']);
     expect(summary.deleted).toEqual([]);
-    for (const path of summary.written) {
-      expect(verifyStamp(readFileSync(join(root, path), 'utf8'))).toBe('ok');
+    for (const path of FULL_EMISSION) {
+      expect(verifyStamp(readFileSync(join(root, path), 'utf8')), path).toBe('ok');
     }
   });
 
@@ -50,7 +59,7 @@ describe('runBuild', () => {
     runBuild(root, OPTS(reg));
     const second = runBuild(root, OPTS(reg));
     expect(second.written).toEqual([]);
-    expect(second.unchanged).toHaveLength(4);
+    expect(second.unchanged).toEqual(FULL_EMISSION);
   });
 
   it('restores tampered files (stamp still present) to byte-identical output', () => {
@@ -77,8 +86,17 @@ describe('runBuild', () => {
     runBuild(root, OPTS(reg));
     writeFileSync(join(root, 'deck.yaml'), 'version: 1\nrites:\n  - id: migration\n');
     const summary = runBuild(root, OPTS(reg));
-    expect(summary.deleted).toEqual(['arcana/cards/hermit.md']);
+    expect(summary.deleted).toEqual([
+      '.claude/agents/hermit.md',
+      '.claude/arcana/bin/gate.mjs',
+      '.claude/arcana/bin/mark-review.mjs',
+      '.claude/arcana/guard-config.mjs',
+      '.claude/arcana/lib.mjs',
+      '.claude/rules/hermit.md',
+      'arcana/cards/hermit.md',
+    ]);
     expect(existsSync(join(root, 'arcana/cards/hermit.md'))).toBe(false);
+    expect(existsSync(join(root, '.claude/agents/hermit.md'))).toBe(false);
   });
 
   it('never deletes unstamped files in owned directories', () => {
@@ -98,12 +116,7 @@ describe('ownedFiles', () => {
     const root = projectRoot();
     runBuild(root, OPTS(registry()));
     writeFileSync(join(root, 'arcana/cards/notes.md'), 'not stamped\n');
-    expect(ownedFiles(root)).toEqual([
-      'CLAUDE.md',
-      'arcana/cards/hermit.md',
-      'arcana/precepts.md',
-      'arcana/rites/migration.md',
-    ]);
+    expect(ownedFiles(root)).toEqual(FULL_EMISSION);
   });
 
   it('returns nothing before the first build', () => {

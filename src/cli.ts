@@ -2,6 +2,7 @@ import { Command } from 'commander';
 import { ArcanaError } from './errors.js';
 import { runBuild } from './commands/build.js';
 import { formatCheckSummary, runCheck } from './commands/check.js';
+import { runEject } from './commands/eject.js';
 import { runInit } from './commands/init.js';
 import { runList } from './commands/list.js';
 import { cliVersion } from './version.js';
@@ -56,6 +57,19 @@ program
     const summary = runCheck(process.cwd(), { version: cliVersion() });
     console.log(formatCheckSummary(summary));
     if (!summary.ok) process.exitCode = 1;
+  });
+
+program
+  .command('eject')
+  .description('Strip generation markers so the emitted files are plainly yours, forever.')
+  .action(() => {
+    const summary = runEject(process.cwd());
+    for (const path of summary.ejected) console.log(`  ejected ${path}`);
+    console.log(
+      summary.ejected.length > 0
+        ? '✓ files are yours now — they keep working without arcana; deck.yaml no longer manages them'
+        : 'nothing to eject — no generated files found',
+    );
   });
 
 program.parseAsync(process.argv).catch((err: unknown) => {

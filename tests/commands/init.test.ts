@@ -44,7 +44,12 @@ describe('runInit', () => {
     writeFileSync(custom, 'version: 1\nrites:\n  - id: migration\n');
     const summary = runInit(root, { ...OPTS(registry(false)), from: custom });
     expect(readFileSync(join(root, 'deck.yaml'), 'utf8')).toContain('migration');
-    expect(summary.written).toEqual(['CLAUDE.md', 'arcana/precepts.md', 'arcana/rites/migration.md']);
+    expect(summary.written).toEqual([
+      '.claude/skills/migration/SKILL.md',
+      'CLAUDE.md',
+      'arcana/precepts.md',
+      'arcana/rites/migration.md',
+    ]);
   });
 
   it('refuses to overwrite an existing deck.yaml', () => {

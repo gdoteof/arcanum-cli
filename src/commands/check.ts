@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { verifyStamp } from '../compiler/hash.js';
 import { compile } from '../compiler/pipeline.js';
+import { settingsUpToDate, SETTINGS_PATH } from '../emitters/claude/settings.js';
 import { loadProject, type LoadOptions } from '../loader/index.js';
 import { ownedFiles } from './build.js';
 
@@ -66,6 +67,16 @@ export function runCheck(root: string, options: CheckOptions): CheckSummary {
         detail: 'generated file no longer in the deck — run "arcana build" to remove it',
       });
     }
+  }
+
+  const settingsAbs = join(root, SETTINGS_PATH);
+  const settingsText = existsSync(settingsAbs) ? readFileSync(settingsAbs, 'utf8') : undefined;
+  if (!settingsUpToDate(settingsText, output.settingsGroups)) {
+    problems.push({
+      path: SETTINGS_PATH,
+      kind: 'stale',
+      detail: 'arcana hook entries are missing or outdated — run "arcana build"',
+    });
   }
 
   problems.sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));

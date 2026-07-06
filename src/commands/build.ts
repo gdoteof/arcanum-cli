@@ -9,13 +9,21 @@ import {
 } from 'node:fs';
 import { dirname, join, relative, sep } from 'node:path';
 import type { BudgetReport } from '../compiler/budget.js';
+import { mergeSettings, settingsUpToDate, SETTINGS_PATH } from '../emitters/claude/settings.js';
 import { ArcanaError } from '../errors.js';
 import { isStamped } from '../compiler/hash.js';
 import { compile } from '../compiler/pipeline.js';
 import { loadProject, type LoadOptions } from '../loader/index.js';
 
 /** Paths (relative to the project root) whose stamped contents arcana owns. */
-export const OWNED_ROOTS = ['CLAUDE.md', 'arcana'];
+export const OWNED_ROOTS = [
+  'CLAUDE.md',
+  'arcana',
+  '.claude/rules',
+  '.claude/agents',
+  '.claude/skills',
+  '.claude/arcana',
+];
 
 export interface BuildSummary {
   written: string[];
@@ -90,6 +98,17 @@ export function runBuild(root: string, options: BuildOptions): BuildSummary {
       rmSync(join(root, rel));
       summary.deleted.push(rel);
     }
+  }
+
+  // Hook registrations merge into settings.json rather than replacing it; the
+  // write is skipped when the arcana-owned entries are already current, so
+  // user formatting is never touched gratuitously.
+  const settingsAbs = join(root, SETTINGS_PATH);
+  const existing = existsSync(settingsAbs) ? readFileSync(settingsAbs, 'utf8') : undefined;
+  if (!settingsUpToDate(existing, output.settingsGroups)) {
+    mkdirSync(dirname(settingsAbs), { recursive: true });
+    writeFileSync(settingsAbs, mergeSettings(existing, output.settingsGroups));
+    summary.written.push(SETTINGS_PATH);
   }
   return summary;
 }

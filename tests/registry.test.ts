@@ -47,7 +47,9 @@ describe('the shipped registry', () => {
     const summary = runInit(root, OPTS);
     expect(summary.budget.ok).toBe(true);
     expect(summary.written).toContain('CLAUDE.md');
-    expect(summary.written.length).toBe(11); // core + 5 cards + 4 rites + precepts
+    // core + 5 card refs + 4 rite refs + precepts + 2 rules + 4 skills
+    // + 2 agents + 4 hook files + settings.json
+    expect(summary.written.length).toBe(24);
     expect(runCheck(root, OPTS).ok).toBe(true);
   });
 
