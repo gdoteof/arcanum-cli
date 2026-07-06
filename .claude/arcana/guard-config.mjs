@@ -2,7 +2,7 @@
 
 export const secretScan = true;
 export const forcePushBlocked = true;
-export const knownReviewIds = ["hermit","justice","hierophant","temperance","strength"];
+export const knownReviewIds = ["hermit","justice","hierophant","temperance","strength","devil"];
 export const gates = [
   {
     "id": "hermit",
@@ -37,6 +37,21 @@ export const gates = [
     "moments": [
       "pre-pr"
     ]
+  },
+  {
+    "id": "devil",
+    "domain": "adversarial abuse",
+    "reference": "arcana/cards/devil.md",
+    "globs": [
+      "**/*parser*",
+      "**/*upload*",
+      "**/handlers/**",
+      "**/routes/**",
+      "**/*quota*"
+    ],
+    "moments": [
+      "pre-pr"
+    ]
   }
 ];
-// arcana:hash:sha256 531f625415abf1360fefcb01fd7c8e846dd5ed1182a369f25bcef21fa010c403
+// arcana:hash:sha256 d76cf82f1662aef819ae4c26fb40e6a774d0522eaea2813c75d2a02536eff104

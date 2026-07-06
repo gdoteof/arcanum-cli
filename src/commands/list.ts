@@ -21,7 +21,8 @@ function describeVigils(card: ResolvedCard): string {
 function cardLine(card: ResolvedCard): string {
   const meta = card.card.meta;
   const lore = meta.title ? `${meta.title}, ` : '';
-  return `  ${meta.id} (${lore}${meta.domain}) — ${describeVigils(card)}`;
+  const tag = meta.posture === 'adversarial' ? ' [adversarial]' : '';
+  return `  ${meta.id} (${lore}${meta.domain})${tag} — ${describeVigils(card)}`;
 }
 
 function riteLines(rite: ResolvedRite): string[] {
@@ -55,11 +56,15 @@ export function runList(root: string, options: ListOptions): string {
 
   // Assembled directly (not via compile) so an over-budget deck still lists.
   const hooksEnabled = deck.enforcement.claude_hooks;
+  const agents = agentCards(project);
   const core = stamp(
     emitCore(project, {
       version: options.version,
       gatedTexts: hooksEnabled ? gatedBindingTexts(project) : new Set<string>(),
-      agentIds: new Set(agentCards(project).map((c) => c.card.meta.id)),
+      agentIds: new Set(agents.map((c) => c.card.meta.id)),
+      adversarialIds: new Set(
+        agents.filter((c) => c.card.meta.posture === 'adversarial').map((c) => c.card.meta.id),
+      ),
     }),
   );
   const budget = checkBudget(core);

@@ -37,10 +37,14 @@ export function compile(project: Project, options: CompileOptions): BuildOutput 
   const hooksEnabled =
     project.deck.enforcement.claude_hooks &&
     (gateEntries(project).length > 0 || gatedBindingTexts(project).size > 0);
-  const agentIds = new Set(agentCards(project).map((c) => c.card.meta.id));
+  const agents = agentCards(project);
+  const agentIds = new Set(agents.map((c) => c.card.meta.id));
+  const adversarialIds = new Set(
+    agents.filter((c) => c.card.meta.posture === 'adversarial').map((c) => c.card.meta.id),
+  );
   const gatedTexts = hooksEnabled ? gatedBindingTexts(project) : new Set<string>();
 
-  const core = stamp(emitCore(project, { version, gatedTexts, agentIds }));
+  const core = stamp(emitCore(project, { version, gatedTexts, agentIds, adversarialIds }));
   const budget = checkBudget(core);
   if (!budget.ok) {
     throw new ArcanaError(formatOverageReport(budget));

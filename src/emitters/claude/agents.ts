@@ -22,7 +22,11 @@ export function agentDescription(card: ResolvedCard): string {
   if (globs.length > 0) cues.push(`when changes touch files matching ${globs.join(', ')}`);
   for (const change of changes) cues.push(`when ${CHANGE_TYPE_PHRASES[change]}`);
   const when = cues.length > 0 ? ` Use ${cues.join('; ')}.` : '';
-  return `Reviews a change set for ${meta.domain} findings without editing anything.${when}`;
+  const job =
+    meta.posture === 'adversarial'
+      ? `Adversarial audit: actively tries to break a change set (${meta.domain}) and proves breaks with reproductions. Give it only the diff and the task statement — not your reasoning.`
+      : `Reviews a change set for ${meta.domain} findings without editing anything.`;
+  return `${job}${when}`;
 }
 
 /**
@@ -33,28 +37,49 @@ export function agentDescription(card: ResolvedCard): string {
 export function emitAgents(project: Project, version: string): EmittedFile[] {
   return agentCards(project).map((card) => {
     const meta = card.card.meta;
+    const adversarial = meta.posture === 'adversarial';
     const frontmatter = [
       '---',
       `name: ${meta.id}`,
       `description: "${agentDescription(card).replace(/"/g, '\\"')}"`,
       ...(meta.tools === 'read-only' ? ['tools: Read, Grep, Glob'] : []),
+      // Execute-profile auditors probe a disposable copy, not the live tree.
+      ...(meta.tools === 'execute' ? ['tools: Read, Grep, Glob, Bash', 'isolation: worktree'] : []),
       `model: ${MODEL_BY_HINT[meta.model_hint]}`,
       '---',
     ];
+    const mission = adversarial
+      ? [
+          'You are given a change set with no context beyond the stated task — by',
+          'design: you owe its author nothing. Your job is to break it before real',
+          'users do. Attack it; do not merely read it.',
+        ]
+      : [
+          'You review the change set you are given. You do not edit files, run the',
+          'code, or fix anything — you report findings for the caller to act on.',
+        ];
+    const closing = adversarial
+      ? [
+          'Structure your reply as a list of breaks (severity, location, reproduction,',
+          'impact), then the claims you attacked that held. A clean result means',
+          '"attempted these attacks, all held" — with the list, never a bare pass.',
+        ]
+      : [
+          'Structure your reply as a list of findings (severity, location, what and',
+          `why, suggested fix), or state clearly that the ${meta.domain} review found`,
+          'nothing. Findings must be concrete enough to act on without re-review.',
+        ];
     const content = [
       ...frontmatter,
       generatorNotice(version),
       '',
       `# ${cardReviewTitle(card)}`,
       '',
-      'You review the change set you are given. You do not edit files, run the',
-      'code, or fix anything — you report findings for the caller to act on.',
+      ...mission,
       '',
       buildChecklist(card),
       '',
-      'Structure your reply as a list of findings (severity, location, what and',
-      `why, suggested fix), or state clearly that the ${meta.domain} review found`,
-      'nothing. Findings must be concrete enough to act on without re-review.',
+      ...closing,
     ].join('\n');
     return { path: `.claude/agents/${meta.id}.md`, content: `${content}\n` };
   });

@@ -19,6 +19,7 @@ describe('parseCard', () => {
       requires_isolation: 'preferred',
       model_hint: 'strong',
       tools: 'read-only',
+      posture: 'review',
     });
     expect(card.body).toContain('security auditor');
     expect(card.sourcePath).toBe('hermit.md');
@@ -74,6 +75,28 @@ describe('parseCard', () => {
     expect(() =>
       parseCard(`---\nid: c\ndomain: x\nseverity_default: omen\n---\n\n`, 'f.md'),
     ).toThrow(/checklist.*empty/);
+  });
+
+  it('defaults posture to review', () => {
+    const card = parseCard(VALID_CARD, 'hermit.md');
+    expect(card.meta.posture).toBe('review');
+  });
+
+  it('accepts an adversarial card that is also isolated', () => {
+    const text = `---\nid: devil\ndomain: abuse\nseverity_default: portent\nrequires_isolation: preferred\ntools: execute\nposture: adversarial\n---\nBreak it.\n`;
+    const card = parseCard(text, 'devil.md');
+    expect(card.meta.posture).toBe('adversarial');
+    expect(card.meta.tools).toBe('execute');
+  });
+
+  it('rejects an adversarial card that is not isolated', () => {
+    const text = `---\nid: devil\ndomain: abuse\nseverity_default: portent\nposture: adversarial\n---\nBreak it.\n`;
+    expect(() => parseCard(text, 'devil.md')).toThrow(/adversarial cards must set requires_isolation/);
+  });
+
+  it('rejects an unknown posture', () => {
+    const text = `---\nid: c\ndomain: x\nseverity_default: omen\nposture: hostile\n---\nB.\n`;
+    expect(() => parseCard(text, 'f.md')).toThrow(/posture/);
   });
 
   it('rejects an invalid isolation value', () => {

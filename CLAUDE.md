@@ -40,6 +40,7 @@ Before starting a non-trivial task, read arcana/precepts.md and follow it.
 - When working in files matching `**/client/**` or `**/clients/**` or `**/integrations/**` or `**/adapters/**` or `**/*gateway*`: review your changes against arcana/cards/strength.md (resilience) before finishing.
 - When adding a new dependency: review the change against arcana/cards/strength.md (resilience).
 - When updating a dependency: review the change against arcana/cards/strength.md (resilience).
+- Before opening a pull request: if the changes touch `**/*parser*` or `**/*upload*` or `**/handlers/**` or `**/routes/**` or `**/*quota*`, have the `devil` agent review them (adversarial abuse).
 
 Reviews report findings at four severities; act on them as follows:
 
@@ -51,4 +52,10 @@ Reviews report findings at four severities; act on them as follows:
 When several reviews apply to the same change, run their agents in
 parallel where available, then reconcile the findings into one verdict
 with clear priorities — not a pile of contradictions.
-<!-- arcana:hash:sha256 d79cff27f1e6cb4e8d0966f4c249bfa5b910d1e190de543e787e7670fd632004 -->
+
+Some of these are adversarial audits that try to break the change. When
+you dispatch one, hand it only the diff and the task statement — never your
+own reasoning, plan, or why you think the code is correct. Its value comes
+from a clean-room view; do not contaminate it. Treat every reproduction it
+returns as real until you have disproven it.
+<!-- arcana:hash:sha256 30b92d87b8ea12c8be60f45ed8bf40a9ad7870231322a5d6b72aa6ed53ce2080 -->

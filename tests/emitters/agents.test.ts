@@ -15,6 +15,8 @@ function fixture(deckYaml?: string) {
   return project;
 }
 
+const WITH_DEVIL = 'version: 1\ncards:\n  - id: hermit\n  - id: justice\n  - id: devil\n';
+
 describe('emitAgents', () => {
   it('emits agents only for isolation-preferred cards', () => {
     const files = emitAgents(fixture(), FIXTURE_VERSION);
@@ -22,6 +24,34 @@ describe('emitAgents', () => {
       '.claude/agents/hermit.md',
       '.claude/agents/justice.md',
     ]);
+  });
+
+  it('gives an adversarial execute-profile card Bash and a worktree', () => {
+    const devil = emitAgents(fixture(WITH_DEVIL), FIXTURE_VERSION).find((f) =>
+      f.path.endsWith('devil.md'),
+    )!;
+    expect(devil.content).toContain('tools: Read, Grep, Glob, Bash');
+    expect(devil.content).toContain('isolation: worktree');
+  });
+
+  it('gives an adversarial card a break-it mission and reproduction contract', () => {
+    const devil = emitAgents(fixture(WITH_DEVIL), FIXTURE_VERSION).find((f) =>
+      f.path.endsWith('devil.md'),
+    )!;
+    expect(devil.content).toContain('Your job is to break it before real');
+    expect(devil.content).toContain('Every finding must come with a concrete reproduction');
+    expect(devil.content).toContain('attempted, held');
+    expect(devil.content).toContain('run it only');
+    expect(devil.content).toContain('list of breaks');
+    // an adversarial auditor is allowed to run the code, so no "never execute" rule
+    expect(devil.content).not.toContain('never execute the code under review');
+  });
+
+  it('describes an adversarial agent as a clean-room breaker', () => {
+    const project = fixture(WITH_DEVIL);
+    const devil = project.cards.find((c) => c.card.meta.id === 'devil')!;
+    expect(agentDescription(devil)).toContain('Adversarial audit');
+    expect(agentDescription(devil)).toContain('not your reasoning');
   });
 
   it('maps model hints: strong → inherit, cheap → haiku', () => {

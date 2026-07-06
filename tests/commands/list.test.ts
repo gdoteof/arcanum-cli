@@ -48,6 +48,18 @@ describe('runList', () => {
     expect(out).toContain('OVER BUDGET, build will fail');
   });
 
+  it('tags adversarial cards', () => {
+    const reg = makeTree({
+      'cards/devil.md':
+        '---\nid: devil\ntitle: The Devil\ndomain: abuse\nseverity_default: portent\nrequires_isolation: preferred\ntools: execute\nposture: adversarial\ndefault_vigils:\n  moments: [pre-pr]\n---\nBreak it.\n',
+      'precepts.md': VALID_PRECEPTS,
+    });
+    const root = makeTree({ 'deck.yaml': 'version: 1\ncards:\n  - id: devil\n' });
+    cleanups.push(reg, root);
+    const out = runList(root, { version: '0.0.0-test', registryDir: reg });
+    expect(out).toContain('devil (The Devil, abuse) [adversarial] — moments: pre-pr');
+  });
+
   it('lists cards without lore titles by id and domain alone', () => {
     const reg = makeTree({
       'cards/plain.md': '---\nid: plain\ndomain: style\nseverity_default: whisper\n---\nChecklist.\n',

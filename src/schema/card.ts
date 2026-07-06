@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { ArcanaError, formatZodError } from '../errors.js';
 import { parseFrontmatter } from '../frontmatter.js';
-import { CHANGE_TYPES, MODEL_HINTS, MOMENTS, SEVERITIES, TOOL_PROFILES } from '../types.js';
+import { CHANGE_TYPES, MODEL_HINTS, MOMENTS, POSTURES, SEVERITIES, TOOL_PROFILES } from '../types.js';
 
 const idPattern = /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/;
 
@@ -30,8 +30,13 @@ export const CardFrontmatterSchema = z
     requires_isolation: z.enum(['preferred', 'none']).default('none'),
     model_hint: z.enum(MODEL_HINTS).default('cheap'),
     tools: z.enum(TOOL_PROFILES).default('read-only'),
+    posture: z.enum(POSTURES).default('review'),
   })
-  .strict();
+  .strict()
+  .refine((meta) => meta.posture !== 'adversarial' || meta.requires_isolation === 'preferred', {
+    message:
+      'adversarial cards must set requires_isolation: preferred — the audit only works from a context that never saw the author\'s reasoning',
+  });
 
 export type CardFrontmatter = z.infer<typeof CardFrontmatterSchema>;
 

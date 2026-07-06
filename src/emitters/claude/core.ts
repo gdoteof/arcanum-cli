@@ -8,6 +8,8 @@ export interface CoreOptions {
   gatedTexts: ReadonlySet<string>;
   /** Ids of cards emitted as subagents; their routing lines dispatch the agent. */
   agentIds: ReadonlySet<string>;
+  /** Ids of adversarial-audit agents; triggers the clean-room dispatch note. */
+  adversarialIds: ReadonlySet<string>;
 }
 
 /**
@@ -74,6 +76,16 @@ export function emitCore(project: Project, options: CoreOptions): string {
       '',
       ...synthesis,
     );
+    if (options.adversarialIds.size > 0) {
+      parts.push(
+        '',
+        'Some of these are adversarial audits that try to break the change. When',
+        'you dispatch one, hand it only the diff and the task statement — never your',
+        'own reasoning, plan, or why you think the code is correct. Its value comes',
+        'from a clean-room view; do not contaminate it. Treat every reproduction it',
+        'returns as real until you have disproven it.',
+      );
+    }
   }
 
   return `${parts.join('\n')}\n`;

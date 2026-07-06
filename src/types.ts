@@ -27,8 +27,15 @@ export type Suit = (typeof SUITS)[number];
 export const MODEL_HINTS = ['strong', 'cheap'] as const;
 export type ModelHint = (typeof MODEL_HINTS)[number];
 
-export const TOOL_PROFILES = ['read-only', 'default'] as const;
+export const TOOL_PROFILES = ['read-only', 'execute', 'default'] as const;
 export type ToolProfile = (typeof TOOL_PROFILES)[number];
+
+/**
+ * review — works through a checklist against the change.
+ * adversarial — tries to break the change; findings need reproductions.
+ */
+export const POSTURES = ['review', 'adversarial'] as const;
+export type Posture = (typeof POSTURES)[number];
 
 /**
  * Lore severity names are human-facing only; agent-facing text uses these

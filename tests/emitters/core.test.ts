@@ -19,6 +19,7 @@ const BASE_OPTS = {
   version: FIXTURE_VERSION,
   gatedTexts: new Set<string>(),
   agentIds: new Set<string>(),
+  adversarialIds: new Set<string>(),
 };
 const GATED_OPTS = {
   ...BASE_OPTS,
@@ -118,6 +119,25 @@ cards:
     expect(core).not.toContain('## Required workflows');
     expect(core).not.toContain('## Required reviews');
     expect(core).toContain('## Working principles');
+  });
+
+  it('adds the clean-room dispatch contract when an adversarial audit is present', () => {
+    const withAudit = {
+      ...BASE_OPTS,
+      agentIds: new Set(['devil']),
+      adversarialIds: new Set(['devil']),
+    };
+    const project = fixture('version: 1\ncards:\n  - id: hermit\n  - id: devil\n');
+    const core = emitCore(project, withAudit);
+    expect(core).toContain('adversarial audits that try to break the change');
+    expect(core).toContain('hand it only the diff and the task statement — never your');
+    expect(core).toContain('Treat every reproduction it');
+  });
+
+  it('omits the clean-room note when no adversarial audit is present', () => {
+    const core = emitCore(fixture(), BASE_OPTS);
+    expect(core).not.toContain('clean-room');
+    expect(core).not.toContain('adversarial audits');
   });
 
   it('contains no lore vocabulary', () => {

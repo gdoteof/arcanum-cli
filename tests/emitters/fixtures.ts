@@ -7,6 +7,23 @@ export const FIXTURE_VERSION = '0.0.0-test';
  * A representative project: one card with glob+moment+change vigils, one card
  * with a pre-pr moment only, one rite, two conduct bindings (one critical).
  */
+export const ADVERSARIAL_CARD = `---
+id: devil
+domain: adversarial abuse
+default_vigils:
+  moments: [pre-pr]
+  globs: ["**/handlers/**"]
+severity_default: portent
+requires_isolation: preferred
+model_hint: strong
+tools: execute
+posture: adversarial
+---
+You red-team this change. Try to break it and prove the break.
+
+- Feed it malicious input.
+`;
+
 export function fixtureProject(deckYaml?: string): { project: Project; roots: string[] } {
   const justice = `---
 id: justice
@@ -26,6 +43,7 @@ You are reviewing the full change set for correctness.
   const registry = makeTree({
     'cards/09-hermit.md': VALID_CARD,
     'cards/11-justice.md': justice,
+    'cards/15-devil.md': ADVERSARIAL_CARD,
     'rites/pentacles/migration.md': VALID_RITE,
     'precepts.md': VALID_PRECEPTS,
   });
