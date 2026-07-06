@@ -1,5 +1,5 @@
 {
-  "name": "arcana-deck",
+  "name": "arcanum-cli",
   "version": "0.1.0",
   "description": "An opinionated context library for Claude Code — compile a deck of rules, workflows, and reviewer personas into the files Claude Code natively consumes.",
   "keywords": [
