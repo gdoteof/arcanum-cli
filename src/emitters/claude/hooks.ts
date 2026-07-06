@@ -68,10 +68,14 @@ export function gateEntries(project: Project): GateEntry[] {
 /** Critical conduct bindings that have a deterministic hook mirror (§8). */
 export function gatedBindingTexts(project: Project): Set<string> {
   const gated = new Set<string>();
+  const branchProtection = project.deck.enforcement.protected_branches.length > 0;
   for (const binding of project.deck.bindings.conduct) {
     if (!binding.critical) continue;
     if (/secret|credential|token|password/i.test(binding.text)) gated.add(binding.text);
     if (/force-?push|rewrite history/i.test(binding.text)) gated.add(binding.text);
+    if (branchProtection && /branch|pull request|\bPR\b|merge/i.test(binding.text)) {
+      gated.add(binding.text);
+    }
   }
   return gated;
 }
@@ -86,6 +90,7 @@ function guardConfig(project: Project, version: string): string {
     '',
     `export const secretScan = ${secretScan};`,
     `export const forcePushBlocked = ${forcePushBlocked};`,
+    `export const protectedBranches = ${JSON.stringify(project.deck.enforcement.protected_branches)};`,
     `export const knownReviewIds = ${JSON.stringify(project.cards.map((c) => c.card.meta.id))};`,
     `export const gates = ${JSON.stringify(entries, null, 2)};`,
   ].join('\n');
@@ -110,6 +115,11 @@ export function sha256(text) {
 
 export function repoRoot() {
   const out = git(['rev-parse', '--show-toplevel']);
+  return out ? out.trim() : null;
+}
+
+export function currentBranch() {
+  const out = git(['rev-parse', '--abbrev-ref', 'HEAD']);
   return out ? out.trim() : null;
 }
 
@@ -173,13 +183,108 @@ export function writeMarker(id, marker) {
 }
 `;
 
-const GATE_SOURCE = `import { readFileSync } from 'node:fs';
-import { git, sha256, stagedHash, branchHash, pathspecs, readMarker } from '../lib.mjs';
-import { secretScan, forcePushBlocked, knownReviewIds, gates } from '../guard-config.mjs';
+const GATE_SOURCE = `import { readFileSync, statSync } from 'node:fs';
+import { join } from 'node:path';
+import { git, sha256, stagedHash, branchHash, pathspecs, readMarker, currentBranch, repoRoot } from '../lib.mjs';
+import { secretScan, forcePushBlocked, protectedBranches, knownReviewIds, gates } from '../guard-config.mjs';
+
+// BEST-EFFORT, NOT A SECURITY BOUNDARY. This hook reads the command TEXT before
+// it runs, so it can only ever be a fast nudge for a cooperative agent, never an
+// airtight control: quoting, subshells, git aliases/functions, a separate GIT_DIR
+// or worktree, and staging in a later command can all defeat command-text parsing.
+// The real enforcement for "no direct changes to a protected branch" is the host's
+// server-side branch protection (and, locally, a git hook that runs at operation
+// time). Two adversarial audits confirmed this layer cannot be made airtight; it is
+// kept because catching the common cases early, with a clear message, is still
+// useful. Do not rely on it as the only gate.
 
 function block(message) {
   process.stderr.write(message + '\\n');
   process.exit(2);
+}
+
+// --- best-effort git command analysis ---------------------------------------
+// Split into shell segments, keeping the separator that FOLLOWS each one so we can
+// tell a guaranteed \`a && b\` sequence from a conditional \`a ; b\` / \`a || b\`.
+function splitSegments(cmd) {
+  const raw = cmd.split(/(&&|\\|\\||;|\\n|\\|)/);
+  const out = [];
+  for (let k = 0; k < raw.length; k += 2) {
+    const text = (raw[k] || '').replace(/\\s+#.*$/, '').trim();
+    if (text) out.push({ text, sepAfter: (raw[k + 1] || '').trim() });
+  }
+  return out;
+}
+const WRAPPERS = new Set([
+  'env', 'command', 'time', 'nice', 'nohup', 'sudo', 'doas', 'stdbuf', 'ionice', 'setsid',
+]);
+function parseGit(seg) {
+  const toks = seg.split(/\\s+/).filter(Boolean);
+  let i = 0;
+  for (;;) {
+    if (i < toks.length && /^[A-Za-z_][A-Za-z0-9_]*=/.test(toks[i])) { i += 1; continue; }
+    if (i < toks.length && WRAPPERS.has(toks[i])) {
+      i += 1;
+      while (i < toks.length && toks[i].startsWith('-')) i += 1;
+      continue;
+    }
+    break;
+  }
+  if (toks[i] !== 'git') return null;
+  i += 1;
+  const valued = ['-C', '-c', '--namespace', '--git-dir', '--work-tree', '--exec-path'];
+  while (i < toks.length && toks[i].startsWith('-')) {
+    i += valued.includes(toks[i]) && !toks[i].includes('=') ? 2 : 1;
+  }
+  if (i >= toks.length) return null;
+  return { sub: toks[i], args: toks.slice(i + 1) };
+}
+function branchTarget(args) {
+  // A \`--\` anywhere means this is a file-restore (\`git checkout main -- file\`),
+  // not a branch switch — the branch is left unchanged.
+  if (args.includes('--')) return null;
+  for (const a of args) {
+    if (a.startsWith('-')) continue;
+    return a;
+  }
+  return null;
+}
+// Destination branch a push refspec updates. Returns 'HEAD' for the current-branch
+// forms so the caller can resolve it against the simulated branch.
+function refDest(refspec) {
+  const r = refspec.replace(/^\\+/, '');
+  const c = r.indexOf(':');
+  const dst = c >= 0 ? r.slice(c + 1) : r;
+  return dst.replace(/^refs\\/heads\\//, '');
+}
+function pushRefspecs(args) {
+  return args.filter((a) => !a.startsWith('-')).slice(1);
+}
+function isForcePush(args) {
+  return (
+    args.some((a) => /^--force(-with-lease|-if-includes)?$/.test(a) || a === '-f') ||
+    pushRefspecs(args).some((r) => r.startsWith('+'))
+  );
+}
+function parseAdded(diff) {
+  if (!diff) return [];
+  const lines = [];
+  let file = '(unknown file)';
+  for (const line of diff.split('\\n')) {
+    if (line.startsWith('+++ b/')) file = line.slice(6);
+    else if (line.startsWith('+') && !line.startsWith('+++')) lines.push([file, line.slice(1)]);
+  }
+  return lines;
+}
+function readFileSafe(p) {
+  try {
+    const abs = p.startsWith('/') ? p : join(repoRoot() || '.', p);
+    const st = statSync(abs);
+    if (!st.isFile() || st.size > 1048576) return null;
+    return readFileSync(abs, 'utf8');
+  } catch {
+    return null;
+  }
 }
 
 let command = '';
@@ -191,19 +296,99 @@ try {
   process.exit(0);
 }
 
-const gitPrefix = '\\\\bgit(\\\\s+-[^\\\\s]+|\\\\s+-C\\\\s+\\\\S+)*\\\\s+';
-const isCommit = new RegExp(gitPrefix + 'commit\\\\b').test(command);
-const isPush = new RegExp(gitPrefix + 'push\\\\b').test(command);
+const parsedSegs = splitSegments(command).map((s) => ({ ...s, git: parseGit(s.text) }));
+const gitCmds = parsedSegs.map((s) => s.git).filter(Boolean);
 const isPrCreate = /\\bgh\\s+pr\\s+create\\b/.test(command);
-const isForce = /(\\s--force(-with-lease|-if-includes)?\\b|\\s-f\\b)/.test(command);
 
-if (isPush && isForce && forcePushBlocked) {
-  block(
-    'Blocked by a conduct rule: never force-push or rewrite history on a shared ' +
-      'branch. If this is genuinely required, ask the user to run it themselves.',
-  );
+// Branch discipline + force-push conduct, in one pass so both see the branch a
+// command actually acts on. A checkout/switch only moves the simulated branch when
+// joined to what follows by \`&&\` (success guaranteed before the next command runs);
+// a conditional \`;\`/\`||\` checkout is not assumed to have succeeded.
+//
+// This is deliberately best-effort and NOT exhaustive: it covers the everyday
+// commit/merge/pull/push paths. Less common branch-moving subcommands (revert,
+// cherry-pick, rebase, am, branch -f, update-ref) are NOT caught here — a local
+// commit they create still cannot reach a protected branch except through a push,
+// which IS checked. Server-side branch protection is the real gate.
+const guardBranches = protectedBranches.length > 0;
+if (forcePushBlocked || guardBranches) {
+  let sim = currentBranch();
+  const protectedNow = () => sim !== null && protectedBranches.includes(sim);
+  const pushDests = (args) => {
+    const specs = pushRefspecs(args);
+    if (specs.length === 0) return sim === null ? [] : [sim];
+    return specs.map((r) => {
+      const dst = refDest(r);
+      return dst === 'HEAD' ? sim : dst;
+    });
+  };
+  for (const { git: g, sepAfter } of parsedSegs) {
+    if (!g) continue;
+    if (g.sub === 'checkout' || g.sub === 'switch') {
+      const t = branchTarget(g.args);
+      if (t !== null && sepAfter === '&&') sim = t;
+      continue;
+    }
+    if (g.sub === 'push') {
+      const dests = pushDests(g.args).filter((d) => d !== null);
+      const targetsProtected = dests.some((d) => protectedBranches.includes(d));
+      // Force-push conduct: with protected branches defined, only block force to
+      // one of them (force-pushing your own feature branch after a rebase is fine);
+      // with none defined, we cannot tell which branch is shared, so block all.
+      if (forcePushBlocked && isForcePush(g.args) && (!guardBranches || targetsProtected)) {
+        block(
+          'Blocked by a conduct rule: never force-push or rewrite history on a shared ' +
+            'branch. If this is genuinely required, ask the user to run it themselves.',
+        );
+      }
+      if (guardBranches && targetsProtected) {
+        block(
+          'Blocked: do not push directly to a protected branch. Push your feature ' +
+            'branch and open a pull request; the merge into ' +
+            protectedBranches.join('/') +
+            ' happens there.',
+        );
+      }
+      continue;
+    }
+    if (!guardBranches) continue;
+    if (g.sub === 'commit' && protectedNow()) {
+      block(
+        'Blocked: this would commit on the protected branch "' +
+          sim +
+          '". Do your work on a feature branch — "git checkout -b <name>" — and land it ' +
+          'through a reviewed pull request.',
+      );
+    }
+    if (g.sub === 'merge' && protectedNow()) {
+      block(
+        'Blocked: do not merge into the protected branch "' +
+          sim +
+          '" locally. Open a pull request and let it be reviewed and merged there.',
+      );
+    }
+    if (g.sub === 'pull' && protectedNow()) {
+      const pos = g.args.filter((a) => !a.startsWith('-'));
+      const src = pos[1];
+      if (src && !protectedBranches.includes(src)) {
+        block(
+          'Blocked: "git pull ' +
+            (pos[0] || '') +
+            ' ' +
+            src +
+            '" would merge ' +
+            src +
+            ' into the protected branch "' +
+            sim +
+            '" locally. Open a pull request instead.',
+        );
+      }
+    }
+  }
 }
 
+const isCommit = gitCmds.some((g) => g.sub === 'commit');
+const isPush = gitCmds.some((g) => g.sub === 'push');
 const moment = isCommit ? 'pre-commit' : isPush ? 'pre-push' : isPrCreate ? 'pre-pr' : null;
 if (!moment) process.exit(0);
 
@@ -222,31 +407,76 @@ const SECRET_PATTERNS = [
 const PLACEHOLDER =
   /(?:example|placeholder|changeme|dummy|redacted|your[_-]|<[^>]*>|\\$\\{|\\$[A-Z_]+|process\\.env|os\\.environ|xxx)/i;
 
-function addedLines() {
-  const diff = git(['diff', '--cached']);
-  if (diff === null) return [];
-  const lines = [];
-  let file = '(unknown file)';
-  for (const line of diff.split('\\n')) {
-    if (line.startsWith('+++ b/')) {
-      file = line.slice(6);
-    } else if (line.startsWith('+') && !line.startsWith('+++')) {
-      lines.push([file, line.slice(1)]);
+// Added lines this command would put into the commit, best-effort:
+//  - already staged (git diff --cached)
+//  - for a path named in \`git add <path>\`: the added lines vs HEAD, or the whole
+//    file when it is new/untracked (so we scan ADDED content, not the whole file —
+//    that avoids re-flagging a pre-existing reviewed fixture)
+//  - for \`commit -a/-am\` and \`git add -A/.\`: tracked modifications and any newly
+//    added untracked files
+function untrackedFiles() {
+  const out = git(['ls-files', '--others', '--exclude-standard']);
+  return out === null ? [] : out.split('\\n').map((s) => s.trim()).filter(Boolean);
+}
+function fileAllLines(p) {
+  const content = readFileSafe(p);
+  return content === null ? [] : content.split('\\n').map((ln) => [p, ln]);
+}
+function addedForPath(p) {
+  const tracked = parseAdded(git(['diff', 'HEAD', '--', p]));
+  return tracked.length > 0 ? tracked : fileAllLines(p);
+}
+// Positional pathspecs of a subcommand, skipping options and their values.
+function positionalPaths(args) {
+  const valued = new Set([
+    '-m', '-C', '-c', '-F', '--author', '--date', '--file', '--reuse-message',
+    '--reedit-message', '--fixup', '--squash', '--chmod',
+  ]);
+  const out = [];
+  for (let k = 0; k < args.length; k += 1) {
+    if (args[k] === '--') {
+      for (k += 1; k < args.length; k += 1) out.push(args[k]);
+      break;
     }
+    if (valued.has(args[k])) { k += 1; continue; }
+    if (args[k].startsWith('-')) continue;
+    out.push(args[k]);
   }
-  return lines;
+  return out;
 }
 
 if (moment === 'pre-commit') {
-  const added = addedLines();
+  const staged = parseAdded(git(['diff', '--cached']));
+
+  const commitG = gitCmds.find((g) => g.sub === 'commit');
+  const autoStage =
+    !!commitG &&
+    commitG.args.some(
+      (a) => a === '--all' || (a.startsWith('-') && !a.startsWith('--') && a.includes('a')),
+    );
+  const addSegs = gitCmds.filter((g) => g.sub === 'add');
+  const addAll = addSegs.some((g) =>
+    g.args.some((a) => a === '.' || a === '-A' || a === '--all' || a === '-u'),
+  );
+  const addPaths = addSegs.flatMap((g) => g.args.filter((a) => !a.startsWith('-') && a !== '.'));
+
+  let scan = staged.slice();
+  if (autoStage || addAll) {
+    scan = scan.concat(parseAdded(git(['diff', 'HEAD'])));
+    for (const p of untrackedFiles()) scan = scan.concat(fileAllLines(p));
+  }
+  for (const p of addPaths) scan = scan.concat(addedForPath(p));
+  // \`git commit <pathspec>\` commits the working-tree version of those paths,
+  // bypassing the index the staged-diff read sees.
+  if (commitG) for (const p of positionalPaths(commitG.args)) scan = scan.concat(addedForPath(p));
 
   if (secretScan) {
-    for (const [file, text] of added) {
+    for (const [file, text] of scan) {
       for (const [label, pattern] of SECRET_PATTERNS) {
         if (!pattern.test(text)) continue;
         if (label === 'assigned secret value' && PLACEHOLDER.test(text)) continue;
         block(
-          'Blocked: the staged changes appear to contain a secret (' +
+          'Blocked: the changes about to be committed appear to contain a secret (' +
             label +
             ' in ' +
             file +
@@ -257,7 +487,7 @@ if (moment === 'pre-commit') {
     }
   }
 
-  for (const [file, text] of added) {
+  for (const [file, text] of staged) {
     const wardMatch = /\\bward\\(([^)]*)\\)(:?)\\s*(\\S?.*)/.exec(text);
     if (!wardMatch) continue;
     const [, id, colon, reason] = wardMatch;

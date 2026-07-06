@@ -41,13 +41,27 @@ export const DeckSchema = z
     version: z.literal(1, {
       errorMap: () => ({ message: 'this version of arcana only supports "version: 1" decks' }),
     }),
+    /** Path (relative to the repo root) to always-on team-owned instructions. */
+    preamble: z.string().min(1).optional(),
+    /** Pull-request policy — the kind of choice the Initiation asks about. */
+    pull_requests: z
+      .object({
+        /** State in the core that the pre-PR audits must run before a PR is opened. */
+        require_audit: z.boolean().default(false),
+        /** Grant the agent authority to merge a PR it has audited and trusts. */
+        agent_may_merge: z.boolean().default(false),
+      })
+      .strict()
+      .default({ require_audit: false, agent_may_merge: false }),
     enforcement: z
       .object({
         claude_hooks: z.boolean().default(true),
         git_hooks: z.boolean().default(false),
+        /** Branches that may only be updated through a reviewed PR. Empty = off. */
+        protected_branches: z.array(z.string().min(1)).default([]),
       })
       .strict()
-      .default({ claude_hooks: true, git_hooks: false }),
+      .default({ claude_hooks: true, git_hooks: false, protected_branches: [] }),
     cards: z.array(DeckCardSchema).default([]),
     rites: z.array(DeckRiteSchema).default([]),
     bindings: z

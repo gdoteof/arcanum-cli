@@ -58,9 +58,9 @@ describe('emitCore', () => {
     expect(ungated).not.toContain('commit gate');
     const gated = emitCore(fixture(), GATED_OPTS);
     expect(gated).toContain(
-      '- Never commit credentials, tokens, or secrets. (a commit gate enforces this)',
+      '- Never commit credentials, tokens, or secrets. (a commit hook checks this)',
     );
-    expect(gated).not.toContain('documented. (a commit gate enforces this)');
+    expect(gated).not.toContain('documented. (a commit hook checks this)');
   });
 
   it('routes review vigils to the checklist and audit vigils to the agent', () => {
@@ -128,6 +128,53 @@ describe('emitCore', () => {
     expect(core).not.toContain('An audit is a review');
     expect(core).toContain('reconcile their findings and');
     expect(core).toContain('not a pile of contradictions');
+  });
+
+  it('inserts a preamble verbatim after the intro, ahead of the generated rules', () => {
+    const registry = makeTree({ 'precepts.md': VALID_PRECEPTS });
+    const root = makeTree({
+      'deck.yaml': 'version: 1\npreamble: src/preamble.md\n',
+      'src/preamble.md': '## House rules\n\nAlways run the linter.\n',
+    });
+    cleanups.push(registry, root);
+    const project = loadProject(root, { registryDir: registry });
+    const core = emitCore(project, REVIEW_OPTS);
+    expect(core).toContain('## House rules\n\nAlways run the linter.');
+    // preamble sits between the intro and Working principles
+    expect(core.indexOf('## House rules')).toBeLessThan(core.indexOf('## Working principles'));
+  });
+
+  it('compiles the pull-request policy into a section when set', () => {
+    const project = fixture(
+      'version: 1\ncards:\n  - id: justice\npull_requests:\n  require_audit: true\n  agent_may_merge: true\n',
+    );
+    const core = emitCore(project, BASE_OPTS);
+    expect(core).toContain('## Pull requests');
+    expect(core).toContain('Before opening a pull request, run the required audits above');
+    expect(core).toContain('You may merge a pull request yourself once you trust it');
+    expect(core).toContain('never land changes by committing');
+  });
+
+  it('omits the pull-request section when the policy is off', () => {
+    const core = emitCore(fixture(REVIEW_ONLY), REVIEW_OPTS);
+    expect(core).not.toContain('## Pull requests');
+  });
+
+  it('emits only the requested pull-request clauses', () => {
+    const auditOnly = fixture(
+      'version: 1\ncards:\n  - id: justice\npull_requests:\n  require_audit: true\n',
+    );
+    const auditCore = emitCore(auditOnly, BASE_OPTS);
+    expect(auditCore).toContain('Before opening a pull request');
+    expect(auditCore).not.toContain('You may merge a pull request yourself');
+
+    const mergeOnly = fixture(
+      'version: 1\ncards:\n  - id: justice\npull_requests:\n  agent_may_merge: true\n',
+    );
+    const mergeCore = emitCore(mergeOnly, BASE_OPTS);
+    expect(mergeCore).toContain('## Pull requests');
+    expect(mergeCore).toContain('You may merge a pull request yourself');
+    expect(mergeCore).not.toContain('Before opening a pull request, run the required audits');
   });
 
   it('contains no lore vocabulary', () => {
