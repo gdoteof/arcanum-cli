@@ -15,6 +15,7 @@ cards:
   - id: temperance
   - id: strength
   - id: devil
+  - id: hanged-man
 rites:
   - id: migration
   - id: bugfix

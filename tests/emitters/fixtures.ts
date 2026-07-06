@@ -38,9 +38,19 @@ You are reviewing the full change set for correctness.
 
 - Verify claims against the code.
 `;
+  const hangedMan = `---
+id: hanged-man
+domain: convergence
+default_vigils:
+  moments: [stalled]
+severity_default: portent
+---
+Step back from a stuck task and decide whether to continue, change, or stop.
+`;
   const registry = makeTree({
     'cards/09-hermit.md': VALID_CARD,
     'cards/11-justice.md': justice,
+    'cards/12-hanged-man.md': hangedMan,
     'cards/15-devil.md': DEVIL_CARD,
     'rites/pentacles/migration.md': VALID_RITE,
     'precepts.md': VALID_PRECEPTS,
