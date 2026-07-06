@@ -27,6 +27,8 @@ export interface Project {
   cards: ResolvedCard[];
   rites: ResolvedRite[];
   preceptsBody: string;
+  /** Verbatim always-on team-owned content, or undefined when no preamble is set. */
+  preamble: string | undefined;
 }
 
 export interface LoadOptions {
@@ -191,5 +193,17 @@ export function loadProject(root: string, options: LoadOptions = {}): Project {
     throw new ArcanaError(`${preceptsPath}: precepts file is empty`);
   }
 
-  return { root, deck, cards, rites, preceptsBody };
+  let preamble: string | undefined;
+  if (deck.preamble !== undefined) {
+    const preamblePath = join(root, deck.preamble);
+    if (!existsSync(preamblePath)) {
+      throw new ArcanaError(`preamble file not found: ${deck.preamble} (set by deck.yaml)`);
+    }
+    preamble = readFileSync(preamblePath, 'utf8').trim();
+    if (preamble.length === 0) {
+      throw new ArcanaError(`${preamblePath}: preamble file is empty`);
+    }
+  }
+
+  return { root, deck, cards, rites, preceptsBody, preamble };
 }

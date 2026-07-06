@@ -34,6 +34,18 @@ describe('runList', () => {
     expect(out).not.toContain('OVER BUDGET');
   });
 
+  it('reports protected branches and a preamble when set', () => {
+    const reg = makeTree({ 'precepts.md': VALID_PRECEPTS });
+    const root = makeTree({
+      'deck.yaml': 'version: 1\npreamble: src/preamble.md\nenforcement:\n  protected_branches: [main]\n',
+      'src/preamble.md': '## Rules\n\nOne.\nTwo.\n',
+    });
+    cleanups.push(reg, root);
+    const out = runList(root, { version: '0.0.0-test', registryDir: reg });
+    expect(out).toContain('protected branches: main');
+    expect(out).toContain('Preamble: src/preamble.md (4 lines, always-on)');
+  });
+
   it('handles an empty deck and shows vigil-less cards', () => {
     const out = setup('version: 1\n');
     expect(out).toContain('Deck: 0 card(s), 0 rite(s), 0 conduct binding(s)');

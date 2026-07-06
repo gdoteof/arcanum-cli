@@ -76,7 +76,7 @@ describe('the shipped registry', () => {
     cleanups.push(root);
     runInit(root, OPTS);
     const out = runList(root, OPTS);
-    expect(out).toContain('Deck: 6 card(s), 4 rite(s), 5 conduct binding(s)');
+    expect(out).toContain('Deck: 6 card(s), 4 rite(s), 7 conduct binding(s)');
     expect(out).toContain('hermit (The Hermit, security)');
     expect(out).toContain('justice (Justice, correctness)');
     expect(out).toContain('hierophant (The Hierophant, convention)');

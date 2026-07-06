@@ -109,6 +109,49 @@ describe('gate.mjs', () => {
     git('reset', 'settings.example.py');
   });
 
+  it('catches a secret staged-and-committed in one command (chained add, and -am)', () => {
+    // Written but NOT staged — a bare staged-diff read would miss it.
+    writeFileSync(join(root, 'creds.py'), `key = "${FAKE_AWS_KEY}"\n`);
+    expect(gate('git add creds.py && git commit -m cfg').status).toBe(2);
+    rmSync(join(root, 'creds.py'));
+
+    // A tracked file gains a secret; `commit -am` auto-stages it after the hook.
+    writeFileSync(join(root, 'tracked.py'), 'clean = 1\n');
+    git('add', 'tracked.py');
+    git('commit', '-m', 'add tracked');
+    writeFileSync(join(root, 'tracked.py'), `clean = 1\nkey = "${FAKE_AWS_KEY}"\n`);
+    expect(gate('git commit -am update').status).toBe(2);
+    // …but a plain commit that stages nothing is fine (the secret stays uncommitted)
+    expect(gate('git commit -m update').status).toBe(0);
+    git('checkout', '--', 'tracked.py');
+  });
+
+  it('catches secrets via commit pathspec and add-all of an untracked file', () => {
+    // git commit <path> commits the working-tree version, past the index.
+    writeFileSync(join(root, 'ps.py'), 'clean = 1\n');
+    git('add', 'ps.py');
+    git('commit', '-m', 'add ps');
+    writeFileSync(join(root, 'ps.py'), `clean = 1\nkey = "${FAKE_AWS_KEY}"\n`);
+    expect(gate('git commit ps.py -m x').status).toBe(2);
+    git('checkout', '--', 'ps.py');
+
+    // A brand-new untracked file swept in by `git add -A`.
+    writeFileSync(join(root, 'brand.py'), `key = "${FAKE_AWS_KEY}"\n`);
+    expect(gate('git add -A && git commit -m x').status).toBe(2);
+    rmSync(join(root, 'brand.py'));
+  });
+
+  it('does not re-flag a pre-existing reviewed secret on an unrelated change', () => {
+    // A fixture file that already contains a (reviewed) key, committed once.
+    writeFileSync(join(root, 'fixture.py'), `sample = "${FAKE_AWS_KEY}"\n`);
+    git('add', 'fixture.py');
+    git('commit', '-m', 'add fixture');
+    // A later, unrelated staged change to the same file must not re-trigger.
+    writeFileSync(join(root, 'fixture.py'), `sample = "${FAKE_AWS_KEY}"\nunrelated = 1\n`);
+    expect(gate('git add fixture.py && git commit -m unrelated').status).toBe(0);
+    git('checkout', '--', 'fixture.py');
+  });
+
   it('blocks malformed suppression comments', () => {
     stage('notes.ts', '// ward(hermit) missing colon and reason\nconst x = 1;\n');
     const missingReason = gate('git commit -m x');

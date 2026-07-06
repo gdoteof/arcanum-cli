@@ -22,11 +22,16 @@ export function emitCore(project: Project, options: CoreOptions): string {
     'a rule below says to, not preemptively.',
   );
 
+  // Team-owned always-on instructions, verbatim, ahead of the generated rules.
+  if (project.preamble !== undefined) {
+    parts.push('', project.preamble);
+  }
+
   const conduct = project.deck.bindings.conduct;
   if (conduct.length > 0) {
     parts.push('', '## Conduct', '');
     for (const binding of conduct) {
-      const gate = options.gatedTexts.has(binding.text) ? ' (a commit gate enforces this)' : '';
+      const gate = options.gatedTexts.has(binding.text) ? ' (a commit hook checks this)' : '';
       parts.push(`- ${binding.text}${gate}`);
     }
     parts.push(
@@ -82,6 +87,27 @@ export function emitCore(project: Project, options: CoreOptions): string {
         '— never your own reasoning, plan, or why you think the code is correct. Its',
         'value is the clean-room view; do not contaminate it. Treat every',
         'reproduction it returns as real until you have disproven it.',
+      );
+    }
+  }
+
+  const pr = project.deck.pull_requests;
+  if (pr.require_audit || pr.agent_may_merge) {
+    parts.push('', '## Pull requests', '');
+    if (pr.require_audit) {
+      parts.push(
+        'Before opening a pull request, run the required audits above against the',
+        'change set and resolve every must-fix and blocker finding. Do not open the',
+        'pull request first and audit afterward.',
+      );
+    }
+    if (pr.agent_may_merge) {
+      if (pr.require_audit) parts.push('');
+      parts.push(
+        'You may merge a pull request yourself once you trust it — its required audits',
+        'have run against the current diff with no unresolved must-fix or blocker',
+        'finding. Merge through the pull request; never land changes by committing,',
+        'merging, or pushing to a protected branch directly.',
       );
     }
   }

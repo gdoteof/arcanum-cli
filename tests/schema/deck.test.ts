@@ -6,7 +6,11 @@ describe('parseDeck', () => {
   it('parses a full deck', () => {
     const deck = parseDeck(VALID_DECK, 'deck.yaml');
     expect(deck.version).toBe(1);
-    expect(deck.enforcement).toEqual({ claude_hooks: true, git_hooks: false });
+    expect(deck.enforcement).toEqual({
+      claude_hooks: true,
+      git_hooks: false,
+      protected_branches: [],
+    });
     expect(deck.cards).toEqual([{ id: 'hermit' }]);
     expect(deck.rites).toEqual([{ id: 'migration' }]);
     expect(deck.bindings.conduct).toHaveLength(2);
@@ -19,10 +23,46 @@ describe('parseDeck', () => {
 
   it('applies defaults for a minimal deck', () => {
     const deck = parseDeck('version: 1\n', 'deck.yaml');
-    expect(deck.enforcement).toEqual({ claude_hooks: true, git_hooks: false });
+    expect(deck.enforcement).toEqual({
+      claude_hooks: true,
+      git_hooks: false,
+      protected_branches: [],
+    });
     expect(deck.cards).toEqual([]);
     expect(deck.rites).toEqual([]);
     expect(deck.bindings.conduct).toEqual([]);
+    expect(deck.preamble).toBeUndefined();
+  });
+
+  it('parses a preamble path and protected branches', () => {
+    const deck = parseDeck(
+      'version: 1\npreamble: src/preamble.md\nenforcement:\n  protected_branches: [main, release]\n',
+      'deck.yaml',
+    );
+    expect(deck.preamble).toBe('src/preamble.md');
+    expect(deck.enforcement.protected_branches).toEqual(['main', 'release']);
+  });
+
+  it('rejects an empty preamble path', () => {
+    expect(() => parseDeck('version: 1\npreamble: ""\n', 'deck.yaml')).toThrow(/preamble/);
+  });
+
+  it('defaults pull-request policy off and parses overrides', () => {
+    expect(parseDeck('version: 1\n', 'deck.yaml').pull_requests).toEqual({
+      require_audit: false,
+      agent_may_merge: false,
+    });
+    const deck = parseDeck(
+      'version: 1\npull_requests:\n  require_audit: true\n  agent_may_merge: true\n',
+      'deck.yaml',
+    );
+    expect(deck.pull_requests).toEqual({ require_audit: true, agent_may_merge: true });
+  });
+
+  it('rejects unknown keys in pull_requests', () => {
+    expect(() =>
+      parseDeck('version: 1\npull_requests:\n  auto_merge: true\n', 'deck.yaml'),
+    ).toThrow(/[Uu]nrecognized/);
   });
 
   it('parses per-key vigil overrides', () => {
