@@ -45,6 +45,7 @@ describe('runInit', () => {
     const summary = runInit(root, { ...OPTS(registry(false)), from: custom });
     expect(readFileSync(join(root, 'deck.yaml'), 'utf8')).toContain('migration');
     expect(summary.written).toEqual([
+      '.claude/skills/arcana-edit/SKILL.md',
       '.claude/skills/migration/SKILL.md',
       'CLAUDE.md',
       'arcana/precepts.md',

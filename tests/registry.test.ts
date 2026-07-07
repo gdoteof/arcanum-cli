@@ -48,10 +48,9 @@ describe('the shipped registry', () => {
     expect(summary.budget.ok).toBe(true);
     expect(summary.written).toContain('CLAUDE.md');
     // core + 8 card refs + 4 rite refs + precepts + 3 rules (hermit/strength/devil
-    // globs) + 4 skills + 4 audit agents (hermit/justice/strength/devil at pre-pr)
-    // + 4 hook files + settings.json (hanged-man and judgement are globless review
-    // cards: reference only)
-    expect(summary.written.length).toBe(30);
+    // globs) + 4 rite skills + the arcana-edit skill + 4 audit agents + 4 hook files
+    // + settings.json (hanged-man and judgement are globless review cards: ref only)
+    expect(summary.written.length).toBe(31);
     expect(runCheck(root, OPTS).ok).toBe(true);
   });
 
@@ -60,6 +59,10 @@ describe('the shipped registry', () => {
     cleanups.push(root);
     const summary = runInit(root, OPTS);
     for (const path of summary.written) {
+      // The arcana-edit skill is the configuration-editing surface: it must speak
+      // the config's own vocabulary (the `cards:`/`rites:` deck.yaml keys), which is
+      // not persona role-play. It is the one sanctioned place for those words.
+      if (path === '.claude/skills/arcana-edit/SKILL.md') continue;
       const content = readFileSync(join(root, path), 'utf8');
       expect(findLoreWords(content), path).toEqual([]);
     }

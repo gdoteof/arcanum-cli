@@ -2,6 +2,7 @@ import { readdirSync, readFileSync, existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { ArcanaError } from '../errors.js';
+import { parseFrontmatter } from '../frontmatter.js';
 import { parseCard, type Card } from '../schema/card.js';
 import { parseDeck, type Deck } from '../schema/deck.js';
 import { parseRite, type Rite } from '../schema/rite.js';
@@ -29,6 +30,22 @@ export interface Project {
   preceptsBody: string;
   /** Verbatim always-on team-owned content, or undefined when no preamble is set. */
   preamble: string | undefined;
+  /** Where the built-in registry was resolved from (for cataloging available cards/rites). */
+  registryDir: string;
+}
+
+/** Lightweight metadata for a card/rite available to add to the deck. */
+export interface CardInfo {
+  id: string;
+  domain: string;
+}
+export interface RiteInfo {
+  id: string;
+  trigger: string;
+}
+export interface Catalog {
+  cards: CardInfo[];
+  rites: RiteInfo[];
 }
 
 export interface LoadOptions {
@@ -205,5 +222,68 @@ export function loadProject(root: string, options: LoadOptions = {}): Project {
     }
   }
 
-  return { root, deck, cards, rites, preceptsBody, preamble };
+  return { root, deck, cards, rites, preceptsBody, preamble, registryDir };
+}
+
+/** Read `id`/`domain` from a card file's frontmatter, or null if unreadable. */
+function cardInfo(filePath: string): CardInfo | null {
+  try {
+    const { data } = parseFrontmatter(readFileSync(filePath, 'utf8'), filePath);
+    const d = data as { id?: unknown; domain?: unknown };
+    if (typeof d.id === 'string' && typeof d.domain === 'string') {
+      return { id: d.id, domain: d.domain };
+    }
+  } catch {
+    /* skip malformed files in the catalog */
+  }
+  return null;
+}
+
+function riteInfo(filePath: string): RiteInfo | null {
+  try {
+    const { data } = parseFrontmatter(readFileSync(filePath, 'utf8'), filePath);
+    const d = data as { id?: unknown; trigger?: unknown };
+    if (typeof d.id === 'string' && typeof d.trigger === 'string') {
+      return { id: d.id, trigger: d.trigger };
+    }
+  } catch {
+    /* skip */
+  }
+  return null;
+}
+
+/**
+ * Everything available to add to a deck — registry cards/rites plus any local
+ * ones — deduped by id (local overrides registry), sorted. Feeds the arcana-edit
+ * skill so the agent edits against real options, not hallucinated ones.
+ */
+export function buildCatalog(root: string, options: LoadOptions = {}): Catalog {
+  const registryDir = options.registryDir ?? defaultRegistryDir();
+
+  const cards = new Map<string, CardInfo>();
+  for (const dir of cardSearchDirs(root, registryDir)) {
+    for (const name of listMarkdown(dir)) {
+      const info = cardInfo(join(dir, name));
+      if (info && !cards.has(info.id)) cards.set(info.id, info);
+    }
+  }
+
+  const rites = new Map<string, RiteInfo>();
+  for (const dir of riteSearchDirs(root, registryDir)) {
+    if (!existsSync(dir)) continue;
+    for (const suit of readdirSync(dir, { withFileTypes: true })
+      .filter((e) => e.isDirectory())
+      .map((e) => e.name)) {
+      for (const name of listMarkdown(join(dir, suit))) {
+        const info = riteInfo(join(dir, suit, name));
+        if (info && !rites.has(info.id)) rites.set(info.id, info);
+      }
+    }
+  }
+
+  const byId = (a: { id: string }, b: { id: string }) => (a.id < b.id ? -1 : 1);
+  return {
+    cards: [...cards.values()].sort(byId),
+    rites: [...rites.values()].sort(byId),
+  };
 }

@@ -36,7 +36,7 @@ describe('runCheck', () => {
     const { root, reg } = builtProject();
     const summary = check(root, reg);
     expect(summary.ok).toBe(true);
-    expect(summary.checked).toBe(10);
+    expect(summary.checked).toBe(11);
     expect(formatCheckSummary(summary)).toContain('no drift');
   });
 

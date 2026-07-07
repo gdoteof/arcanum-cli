@@ -1,7 +1,8 @@
 import { ArcanaError } from '../errors.js';
-import type { Project } from '../loader/index.js';
+import { buildCatalog, type Project } from '../loader/index.js';
 import { auditCards, emitAgents } from '../emitters/claude/agents.js';
 import { emitCore } from '../emitters/claude/core.js';
+import { emitEditSkill } from '../emitters/claude/edit-skill.js';
 import {
   emitHooks,
   gatedBindingTexts,
@@ -51,6 +52,8 @@ export function compile(project: Project, options: CompileOptions): BuildOutput 
     throw new ArcanaError(formatOverageReport(budget));
   }
 
+  const catalog = buildCatalog(project.root, { registryDir: project.registryDir });
+
   const files: EmittedFile[] = [
     { path: 'CLAUDE.md', content: core },
     ...[
@@ -58,6 +61,7 @@ export function compile(project: Project, options: CompileOptions): BuildOutput 
       ...emitRules(project, version),
       ...emitSkills(project, version),
       ...emitAgents(project, version),
+      emitEditSkill(catalog, version),
       ...(hooksEnabled ? emitHooks(project, version) : []),
     ].map((f) => ({ ...f, content: stamp(f.content, stampStyle(f.path)) })),
   ];

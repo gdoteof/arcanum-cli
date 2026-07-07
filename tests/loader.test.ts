@@ -1,6 +1,6 @@
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { loadProject, defaultRegistryDir } from '../src/loader/index.js';
+import { buildCatalog, loadProject, defaultRegistryDir } from '../src/loader/index.js';
 import { makeTree, removeTree, VALID_CARD, VALID_PRECEPTS, VALID_RITE } from './helpers.js';
 
 const cleanups: string[] = [];
@@ -230,5 +230,41 @@ describe('loadProject', () => {
 
   it('locates the built-in registry directory at the package root', () => {
     expect(defaultRegistryDir()).toBe(join(process.cwd(), 'registry'));
+  });
+});
+
+describe('buildCatalog', () => {
+  it('lists registry and local cards/rites, deduped with local overriding', () => {
+    const reg = tree({
+      'cards/09-hermit.md': VALID_CARD, // domain: security
+      'rites/pentacles/migration.md': VALID_RITE,
+      'precepts.md': VALID_PRECEPTS,
+    });
+    const localHermit = VALID_CARD.replace('domain: security', 'domain: local-sec');
+    const root = tree({
+      'src/cards/hermit.md': localHermit,
+      'src/cards/extra.md':
+        '---\nid: extra\ndomain: style\nseverity_default: whisper\n---\nCheck.\n',
+    });
+    const catalog = buildCatalog(root, { registryDir: reg });
+    // local hermit shadows the registry one; extra is local-only; sorted by id
+    expect(catalog.cards).toEqual([
+      { id: 'extra', domain: 'style' },
+      { id: 'hermit', domain: 'local-sec' },
+    ]);
+    expect(catalog.rites).toEqual([
+      { id: 'migration', trigger: expect.stringContaining('Use when') },
+    ]);
+  });
+
+  it('skips files whose frontmatter lacks the needed fields', () => {
+    const reg = tree({
+      'cards/ok.md': '---\nid: ok\ndomain: x\nseverity_default: omen\n---\nB.\n',
+      'cards/broken.md': '---\nnope: true\n---\nB.\n',
+      'precepts.md': VALID_PRECEPTS,
+    });
+    const root = tree({});
+    const catalog = buildCatalog(root, { registryDir: reg });
+    expect(catalog.cards).toEqual([{ id: 'ok', domain: 'x' }]);
   });
 });

@@ -50,6 +50,7 @@ const FULL_EMISSION = [
   '.claude/arcana/guard-config.mjs',
   '.claude/arcana/lib.mjs',
   '.claude/rules/hermit.md',
+  '.claude/skills/arcana-edit/SKILL.md',
   '.claude/skills/migration/SKILL.md',
   'CLAUDE.md',
   'arcana/cards/hermit.md',
